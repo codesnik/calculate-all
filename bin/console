@@ -1,0 +1,7 @@
+#!/usr/bin/env ruby
+
+require "bundler/setup"
+require "calculate-all"
+
+require "pry"
+Pry.start
