@@ -3,5 +3,8 @@
 require "bundler/setup"
 require "calculate-all"
 
+require './test/test_helper'
+require 'logger'
+ActiveRecord::Base.logger = Logger.new(STDERR)
 require "pry"
 Pry.start
