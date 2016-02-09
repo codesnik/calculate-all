@@ -12,14 +12,18 @@ module CalculateAll
     if functions == {}
       raise ArgumentError, "provide at least one function to calculate"
     end
+    if functions.size == 1 && group_values.size == 0
+      plain_rows = true
+    end
 
     results = {}
 
     pluck(*group_values, *functions.values).each do |row|
+      row = [row] if plain_rows
       if return_plain_values
-        value = Array(row).last
+        value = row.last
       else
-        value = functions.keys.zip(Array(row).last(functions.size)).to_h
+        value = functions.keys.zip(row.last(functions.size)).to_h
       end
 
       # Return unwrapped hash directly for scope without any .group()

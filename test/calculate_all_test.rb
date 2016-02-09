@@ -85,6 +85,22 @@ class CalculateAllTest < Minitest::Test
     assert_equal expected, Order.group(:kind).calculate_all(:count)
   end
 
+  # Postgres only
+  def test_returns_array_on_array_aggregate
+    create_orders
+    expected = %W[USD RUB USD USD RUB]
+    assert_equal expected, Order.calculate_all('ARRAY_AGG(currency ORDER BY id)')
+  end
+
+  def test_returns_array_on_grouped_array_aggregate
+    create_orders
+    expected = {
+      "card"=>["USD", "RUB"],
+      "cash"=>["USD", "USD", "RUB"],
+    }
+    assert_equal expected, Order.group(:kind).calculate_all('ARRAY_AGG(currency ORDER BY id)')
+  end
+
   def create_orders
     Order.create! [
       {kind: 'card', currency: 'USD', cents: 100},

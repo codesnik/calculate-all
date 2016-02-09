@@ -5,7 +5,6 @@ It's a little addition to Active Record's `#count`, `#maximum`, `#minimum`, `#av
 It allows to fetch all of the above and any other aggregate functions results in one request, with respect to grouping.
 
 Tested on Postgres only right now. It relies on automatic values type-casting of underlying driver.
-Also some strange behaviour is possible with aggregate functions returning arrays, like ARRAY_AGG.
 Suggestions and patches are welcome.
 
 ## Usage
