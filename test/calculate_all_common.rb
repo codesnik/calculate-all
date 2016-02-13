@@ -98,13 +98,25 @@ module CalculateAllCommon
     assert_equal expected, Order.group(:kind).calculate_all(:count)
   end
 
+  def test_groupdate_compatibility
+    require 'groupdate'
+    create_orders
+    expected = {
+      ["card", Time.utc(2014,1,1)] => {:count=>1, :sum_cents=>100},
+      ["card", Time.utc(2015,1,1)] => {:count=>1, :sum_cents=>200},
+      ["cash", Time.utc(2014,1,1)] => {:count=>1, :sum_cents=>300},
+      ["cash", Time.utc(2015,1,1)] => {:count=>2, :sum_cents=>900}
+    }
+    assert_equal expected, Order.group(:kind).group_by_year(:created_at, default_value: {}).calculate_all(:count, :sum_cents)
+  end
+
   def create_orders
     Order.create! [
-      {kind: 'card', currency: 'USD', cents: 100},
-      {kind: 'card', currency: 'RUB', cents: 200},
-      {kind: 'cash', currency: 'USD', cents: 300},
-      {kind: 'cash', currency: 'USD', cents: 400},
-      {kind: 'cash', currency: 'RUB', cents: 500},
+      {kind: 'card', currency: 'USD', cents: 100, created_at: Time.utc(2014,1,3)},
+      {kind: 'card', currency: 'RUB', cents: 200, created_at: Time.utc(2015,1,5)},
+      {kind: 'cash', currency: 'USD', cents: 300, created_at: Time.utc(2014,1,10)},
+      {kind: 'cash', currency: 'USD', cents: 400, created_at: Time.utc(2015,5,10)},
+      {kind: 'cash', currency: 'RUB', cents: 500, created_at: Time.utc(2015,10,10)},
     ]
   end
 end

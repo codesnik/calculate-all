@@ -12,6 +12,11 @@ module CalculateAll
     if functions == {}
       raise ArgumentError, "provide at least one function to calculate"
     end
+    # groupdate compatibility
+    group_values = self.group_values
+    if !group_values.is_a?(Array) && group_values.respond_to?(:relation)
+      group_values = group_values.relation
+    end
     if functions.size == 1 && group_values.size == 0
       plain_rows = true
     end
@@ -74,5 +79,9 @@ module CalculateAll
   end
 end
 
-ActiveRecord::Relation.include CalculateAll
+# should be:
+#   ActiveRecord::Relation.include CalculateAll
+# including in module instead, for groupdate compatibility
+ActiveRecord::Calculations.include CalculateAll
+
 ActiveRecord::Base.extend CalculateAll::Querying
