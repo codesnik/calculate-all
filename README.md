@@ -14,7 +14,7 @@ results = YourModel.yourscopes.group(:grouping1).group(:grouping2)
     column3_median: 'percentile_cont(0.5) within group (order by column3 desc)')
 ```
 
-`#calculate_all` tries to mimic magic level of Active Record's `#group, `#count` and `#pluck`
+`#calculate_all` tries to mimic magic of Active Record's `#group`, `#count` and `#pluck`
 so result type depends on arguments and on groupings.
 
 ### Container
