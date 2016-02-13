@@ -1,6 +1,19 @@
-require 'test_helper'
+module CalculateAllCommon
 
-class CalculateAllTest < Minitest::Test
+  class ::Order < ActiveRecord::Base
+  end
+
+  def setup
+    ActiveRecord::Migration.verbose = false
+    ActiveRecord::Base.establish_connection db_credentials
+    ActiveRecord::Migration.create_table :orders, force: true do |t|
+      t.string :kind
+      t.string :currency
+      t.integer :cents
+      t.timestamp :created_at
+    end
+    ::Order.establish_connection db_credentials
+  end
 
   def teardown
     Order.delete_all
@@ -83,22 +96,6 @@ class CalculateAllTest < Minitest::Test
       "card" => 2,
     }
     assert_equal expected, Order.group(:kind).calculate_all(:count)
-  end
-
-  # Postgres only
-  def test_returns_array_on_array_aggregate
-    create_orders
-    expected = %W[USD RUB USD USD RUB]
-    assert_equal expected, Order.calculate_all('ARRAY_AGG(currency ORDER BY id)')
-  end
-
-  def test_returns_array_on_grouped_array_aggregate
-    create_orders
-    expected = {
-      "card"=>["USD", "RUB"],
-      "cash"=>["USD", "USD", "RUB"],
-    }
-    assert_equal expected, Order.group(:kind).calculate_all('ARRAY_AGG(currency ORDER BY id)')
   end
 
   def create_orders

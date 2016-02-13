@@ -4,8 +4,7 @@ Provides `#calculate_all` method on your Active Record models, scopes and relati
 It's a little addition to Active Record's `#count`, `#maximum`, `#minimum`, `#average` and `#sum`.
 It allows to fetch all of the above and any other aggregate functions results in one request, with respect to grouping.
 
-Tested on Postgres only right now. It relies on automatic values type-casting of underlying driver.
-Suggestions and patches are welcome.
+Tested only with Postgres and Mysql only right now. It relies on automatic values type-casting of underlying driver.
 
 ## Usage
 
