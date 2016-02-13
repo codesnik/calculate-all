@@ -110,6 +110,33 @@ module CalculateAllCommon
     assert_equal expected, Order.group(:kind).group_by_year(:created_at, default_value: {}).calculate_all(:count, :sum_cents)
   end
 
+  def test_value_wrapping_one_expression_and_no_groups
+    create_orders
+    assert_equal "5 orders", Order.calculate_all(:count) { |count| "#{count} orders" }
+  end
+
+  def test_value_wrapping_for_one_expression
+    create_orders
+    expected = {
+      "RUB" => "2 orders",
+      "USD" => "3 orders",
+    }
+    assert_equal expected, Order.group(:currency).calculate_all(:count) { |count|
+      "#{count} orders"
+    }
+  end
+
+  def test_value_wrapping_for_several_expressions
+    create_orders
+    expected = {
+      "RUB" => "2 orders, 350 cents average",
+      "USD" => "3 orders, 266 cents average",
+    }
+    assert_equal expected, Order.group(:currency).calculate_all(:count, :avg_cents) { |count:, avg_cents:|
+      "#{count} orders, #{avg_cents.to_i} cents average"
+    }
+  end
+
   def create_orders
     Order.create! [
       {kind: 'card', currency: 'USD', cents: 100, created_at: Time.utc(2014,1,3)},

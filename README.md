@@ -40,6 +40,30 @@ something like this:
 }
 ```
 
+### Conversion, formatting, value objects
+
+You can pass block to calculate_all. Rows will be passed to it and returned value will be used instead of
+row in result hash (or returned as is if there's no grouping)
+
+```ruby
+  Order.group(:country_id).calculate_all(:count, :avg_price) { |count:, avg_price:|
+    "#{count} orders, #{avg_price.to_i} dollars average"
+  }
+  # => {
+  #   1 => "5 orders, 120 dollars average",
+  #   2 => "10 orders, 200 dollars average"
+  # }
+
+  Order.group(:country_id).calculate_all(:avg_price) { |avg_price| avg_price.to_i }
+  # => {
+  #   1 => 120,
+  #   2 => 200
+  # }
+
+  Order.calculate_all(:count, :max_price, &OpenStruct.method(:new))
+  # => #<OpenStruct max_price=500, count=15>
+```
+
 ## groupdate compatibility
 
 calculate-all should work with [groupdate](https://github.com/ankane/groupdate) too:

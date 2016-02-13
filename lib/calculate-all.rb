@@ -2,7 +2,7 @@ require "calculate-all/version"
 require "active_record"
 
 module CalculateAll
-  def calculate_all(*function_aliases, **functions)
+  def calculate_all(*function_aliases, **functions, &block)
     if function_aliases.size == 1 && functions == {}
       return_plain_values = true
     end
@@ -30,6 +30,8 @@ module CalculateAll
       else
         value = functions.keys.zip(row.last(functions.size)).to_h
       end
+
+      value = block.call(value) if block
 
       # Return unwrapped hash directly for scope without any .group()
       return value if group_values.empty?
