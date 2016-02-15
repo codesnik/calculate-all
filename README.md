@@ -4,64 +4,152 @@ Provides `#calculate_all` method on your Active Record models, scopes and relati
 It's a little addition to Active Record's `#count`, `#maximum`, `#minimum`, `#average` and `#sum`.
 It allows to fetch all of the above and any other aggregate functions results in one request, with respect to grouping.
 
-Tested only with Postgres and Mysql only right now. It relies on automatic values type-casting of underlying driver.
+Tested only with Postgres and MySQL only right now. It relies on automatic values type-casting of underlying driver.
 
 ## Usage
 
 ```ruby
-results = YourModel.yourscopes.group(:grouping1).group(:grouping2)
-  .calculate_all(:column1_max, :column2_distinct_count,
-    column3_median: 'percentile_cont(0.5) within group (order by column3 desc)')
+stats = Order.group(:department_id).group(:payment_method).calculate_all(
+  :count,
+  :count_distinct_user_id,
+  :price_max,
+  :price_min,
+  :price_avg,
+  price_median: 'percentile_cont(0.5) within group (order by price desc)'
+)
+# => {
+#   [1, "cash"] => {
+#     count: 10,
+#     count_distinct_user_id: 5,
+#     price_max: 500,
+#     price_min: 100,
+#     price_avg: #<BigDecimal:7ff5932ff3d8,'0.3E3',9(27)>,
+#     price_median: #<BigDecimal:7ff5932ff3c2,'0.4E3',9(27)>
+#   },
+#   [1, "card"] => {
+#     ...
+#   }
+# }
 ```
+
+## Rationale
+
+Active Record allows to use most common DB aggregate functions, COUNT(), MAX(), MIN(), AVG(), SUM() really easy.
+But there's a whole world of wonderful other functions in
+[Postgres](http://www.postgresql.org/docs/9.5/static/functions-aggregate.html) which I can't recommend enough
+if you going to have any work with statistics and BI on your data, though MySQL has something
+[too](http://dev.mysql.com/doc/refman/5.7/en/group-by-functions.html).
+
+Also, in many cases you'll need several metrics at once, and database often has to perform a full scan on
+the table for each metric, but it as well can calculate them all in one scan and one request.
+
+`#calculate_all` to the rescue!
+
+## Arguments
+
+`#calculate_all` accepts a list of expression aliases and/or expression mapping.
+It could be either one string of SQL,
+
+```ruby
+  Model.calculate_all('SUM(price) / COUNT(DISTINCT user_id)')
+```
+
+a hash of expressions with arbitrary symbol keys
+
+```ruby
+  Model.calculate_all(total: 'COUNT(*)', average_spendings: 'SUM(price) / COUNT(DISTINCT user_id)')
+```
+or a list of one or more symbols without expressions, in which case `#calculate_all` tries to guess
+what you wanted from it.
+
+```ruby
+  Model.calculate_all(:count, :average_price, :sum_price)
+```
+
+It's not so smart right now, but here's a cheatsheet:
+
+| symbol                                                                 | would fetch
+|------------------------------------------------------------------------|------------
+| `:count`                                                               | `COUNT(*)`
+| `:count_column1`, `:column1_count`                                     | `COUNT(column1)` (doesn't count NULL's in that column)
+| `:count_distinct_column1`, `:column1_distinct_count`                   | `COUNT(DISTINCT column1)`
+| `:max_column1`, `:column1_max`, `:maximum_column1`, `:column1_maximum` | `MAX(column1)`
+| `:min_column1`, `:column1_min`, `:minimum_column1`, `:column1_minimum` | `MIN(column1)`
+| `:avg_column1`, `:column1_avg`, `:average_column1`, `:column1_average` | `AVG(column1)`
+| `:sum_column1`, `:column1_sum`                                         | `SUM(column1)`
+
+## Result
 
 `#calculate_all` tries to mimic magic of Active Record's `#group`, `#count` and `#pluck`
 so result type depends on arguments and on groupings.
 
-### Container
-
 If you have no `group()` on underlying scope, `#calculate_all` will return just one result.
+
+```ruby
+# same as Order.distinct.count(:user_id), so, probably useless example
+# but you can have any expression with aggregate functions there.
+Order.calculate_all('COUNT(DISTINCT user_id)')
+# => 50
+```
+
 If you have one group, it will return hash of results, with simple keys.
+
+```ruby
+# again, Order.group(:department_id).distinct.count(:user_id) would do the same
+Order.group(:department_id).calculate_all(:count_distinct_user_id)
+# => {
+#   1 => 20,
+#   2 => 10,
+#   ...
+# }
+```
+
 If you have two or more groupings, each result will have an array as a key.
 
-### Results
+```ruby
+Order.group(:department_id).group(:department_method).calculate_all(:count_distinct_user_id)
+# => {
+#   [1, "cash"] => 5,
+#   [1, "card"] => 15,
+#   [2, "cash"] => 1,
+#   ...
+# }
+```
 
 If you provide just one argument to `#calculate_all`, its calculated value will be returned as is.
 Otherwise results would be returned as hash(es) with symbol keys.
 
-so, `Model.calculate_all(:count)` will return just a single integer,
-but `Model.group(:foo1, :foo2).calculate_all(expr1: 'count(expr1)', expr2: 'count(expr2)')` will return
-something like this:
+so, `Order.calculate_all(:count)` will return just a single integer, but
 
 ```ruby
-{
-  ['foo1_1', 'foo2_1'] => {expr1: 0, expr2: 1},
-  ['foo1_1', 'foo2_2'] => {expr1: 2, expr2: 3},
-  ...
-}
+Order.group(:department_id).group(:payment_method).calculate_all(:min_price, expr1: 'count(distinct user_id)')
+# => {
+#   [1, 'cash'] => {min_price: 100, expr1: 5},
+#   [1, 'card'] => {min_price: 150, expr2: 15},
+#   ...
+# }
 ```
-
-### Conversion, formatting, value objects
 
 You can pass block to calculate_all. Rows will be passed to it and returned value will be used instead of
 row in result hash (or returned as is if there's no grouping)
 
 ```ruby
-  Order.group(:country_id).calculate_all(:count, :avg_price) { |count:, avg_price:|
-    "#{count} orders, #{avg_price.to_i} dollars average"
-  }
-  # => {
-  #   1 => "5 orders, 120 dollars average",
-  #   2 => "10 orders, 200 dollars average"
-  # }
+Order.group(:country_id).calculate_all(:count, :avg_price) { |count:, avg_price:|
+  "#{count} orders, #{avg_price.to_i} dollars average"
+}
+# => {
+#   1 => "5 orders, 120 dollars average",
+#   2 => "10 orders, 200 dollars average"
+# }
 
-  Order.group(:country_id).calculate_all(:avg_price) { |avg_price| avg_price.to_i }
-  # => {
-  #   1 => 120,
-  #   2 => 200
-  # }
+Order.group(:country_id).calculate_all(:avg_price) { |avg_price| avg_price.to_i }
+# => {
+#   1 => 120,
+#   2 => 200
+# }
 
-  Order.calculate_all(:count, :max_price, &OpenStruct.method(:new))
-  # => #<OpenStruct max_price=500, count=15>
+Order.calculate_all(:count, :max_price, &OpenStruct.method(:new))
+# => #<OpenStruct max_price=500, count=15>
 ```
 
 ## groupdate compatibility
@@ -69,14 +157,14 @@ row in result hash (or returned as is if there's no grouping)
 calculate-all should work with [groupdate](https://github.com/ankane/groupdate) too:
 
 ```ruby
-  Model.group_by_year(:created_at, last: 5, default_value: {}).calculate_all(:price_min, :price_max)
-  => {
-    Sun, 01 Jan 2012 00:00:00 UTC +00:00=>{},
-    Tue, 01 Jan 2013 00:00:00 UTC +00:00=>{},
-    Wed, 01 Jan 2014 00:00:00 UTC +00:00=>{},
-    Thu, 01 Jan 2015 00:00:00 UTC +00:00=>{},
-    Fri, 01 Jan 2016 00:00:00 UTC +00:00=>{:price_min=>100, :price_max=>500}
-  }
+Order.group_by_year(:created_at, last: 5, default_value: {}).calculate_all(:price_min, :price_max)
+=> {
+  Sun, 01 Jan 2012 00:00:00 UTC +00:00=>{},
+  Tue, 01 Jan 2013 00:00:00 UTC +00:00=>{},
+  Wed, 01 Jan 2014 00:00:00 UTC +00:00=>{},
+  Thu, 01 Jan 2015 00:00:00 UTC +00:00=>{},
+  Fri, 01 Jan 2016 00:00:00 UTC +00:00=>{:price_min=>100, :price_max=>500}
+}
 ```
 
 ## Installation
