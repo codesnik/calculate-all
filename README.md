@@ -17,6 +17,10 @@ stats = Order.group(:department_id).group(:payment_method).calculate_all(
   :price_avg,
   price_median: 'percentile_cont(0.5) within group (order by price desc)'
 )
+#
+#   (2.2ms)  SELECT department_id, payment_method, percentile_cont(0.5) within group (order by price desc),
+#      COUNT(*), COUNT(DISTINCT user_id), MAX(price), MIN(price), AVG(price) FROM "orders" GROUP BY "department_id", "payment_method"
+#
 # => {
 #   [1, "cash"] => {
 #     count: 10,
