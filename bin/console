@@ -1,10 +1,10 @@
 #!/usr/bin/env ruby
 
-require "bundler/setup"
-require "calculate-all"
+require 'bundler/setup'
+require 'calculate-all'
 
 require './test/test_helper'
 require 'logger'
 ActiveRecord::Base.logger = Logger.new(STDERR)
-require "pry"
+require 'pry'
 Pry.start
