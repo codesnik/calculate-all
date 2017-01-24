@@ -163,11 +163,11 @@ calculate-all should work with [groupdate](https://github.com/ankane/groupdate) 
 ```ruby
 Order.group_by_year(:created_at, last: 5, default_value: {}).calculate_all(:price_min, :price_max)
 => {
-  Sun, 01 Jan 2012 00:00:00 UTC +00:00=>{},
-  Tue, 01 Jan 2013 00:00:00 UTC +00:00=>{},
-  Wed, 01 Jan 2014 00:00:00 UTC +00:00=>{},
-  Thu, 01 Jan 2015 00:00:00 UTC +00:00=>{},
-  Fri, 01 Jan 2016 00:00:00 UTC +00:00=>{:price_min=>100, :price_max=>500}
+  Sun, 01 Jan 2012 => {},
+  Tue, 01 Jan 2013 => {},
+  Wed, 01 Jan 2014 => {},
+  Thu, 01 Jan 2015 => {},
+  Fri, 01 Jan 2016 => {:price_min=>100, :price_max=>500}
 }
 ```
 
