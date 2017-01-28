@@ -77,6 +77,7 @@ It's not so smart right now, but here's a cheatsheet:
 | `:count`                                                               | `COUNT(*)`
 | `:count_column1`, `:column1_count`                                     | `COUNT(column1)` (doesn't count NULL's in that column)
 | `:count_distinct_column1`, `:column1_distinct_count`                   | `COUNT(DISTINCT column1)`
+| `:ids`                                                                 | `ARRAY_AGG(id)` (only works on Postgres)
 | `:max_column1`, `:column1_max`, `:maximum_column1`, `:column1_maximum` | `MAX(column1)`
 | `:min_column1`, `:column1_min`, `:minimum_column1`, `:column1_minimum` | `MIN(column1)`
 | `:avg_column1`, `:column1_avg`, `:average_column1`, `:column1_average` | `AVG(column1)`
