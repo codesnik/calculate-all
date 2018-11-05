@@ -161,7 +161,7 @@ Order.calculate_all(:count, :max_price, &OpenStruct.method(:new))
 calculate-all should work with [groupdate](https://github.com/ankane/groupdate) too:
 
 ```ruby
-Order.group_by_year(:created_at, last: 5, default_value: {}).calculate_all(:price_min, :price_max)
+Order.group_by_year(:created_at, last: 5).calculate_all(:price_min, :price_max)
 => {
   Sun, 01 Jan 2012 => {},
   Tue, 01 Jan 2013 => {},
