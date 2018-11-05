@@ -71,6 +71,11 @@ module CalculateAll
       results[key] = value
     end
 
+    if defined?(Groupdate.process_result)
+      default_value = return_plain_values ? nil : {}
+      results = Groupdate.process_result(self, results, default_value: default_value)
+    end
+
     # Return the output array
     results
   end
