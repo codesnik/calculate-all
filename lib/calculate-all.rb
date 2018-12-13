@@ -8,7 +8,7 @@ module CalculateAll
 
     # If only one function_alias is given, the result can be just a single value
     # So return [{ cash: 3 }] instead of [{ cash: { count: 3 }}]
-    if function_aliases.size == 1 && functions == {}
+    if configuration.plain_values && (function_aliases.size == 1 && functions == {})
       return_plain_values = true
     end
 
@@ -73,6 +73,22 @@ module CalculateAll
 
     # Return the output array
     results
+  end
+  
+  class << self
+    attr_writer :configuration
+  end
+
+  def self.configuration
+    @configuration ||= Configuration.new
+  end
+
+  def self.reset
+    @configuration = Configuration.new
+  end
+
+  def self.configure
+    yield(configuration)
   end
 end
 

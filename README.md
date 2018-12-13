@@ -171,6 +171,18 @@ Order.group_by_year(:created_at, last: 5, default_value: {}).calculate_all(:pric
 }
 ```
 
+## Configuration
+
+You can change the behavior of plain values and force to get the function returned
+
+```
+CalculateAll.configure do |config|
+  config.plain_values = false # default true
+end
+```
+
+Return `[{ cash: { count: 3 }}] instead of [{ cash: 3 }]`
+
 ## Installation
 
 Add this line to your application's Gemfile:
