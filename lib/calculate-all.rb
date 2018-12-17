@@ -1,6 +1,7 @@
 require 'calculate-all/version'
 require 'calculate-all/helpers'
 require 'calculate-all/querying'
+require 'calculate-all/configuration'
 
 module CalculateAll
   # Method to aggregate function results in one request
@@ -8,7 +9,7 @@ module CalculateAll
 
     # If only one function_alias is given, the result can be just a single value
     # So return [{ cash: 3 }] instead of [{ cash: { count: 3 }}]
-    if configuration.plain_values && (function_aliases.size == 1 && functions == {})
+    if CalculateAll.configuration.plain_values && (function_aliases.size == 1 && functions == {})
       return_plain_values = true
     end
 
