@@ -102,10 +102,10 @@ module CalculateAllCommon
     require 'groupdate'
     create_orders
     expected = {
-      ['card', Date.new(2014,1,1)] => { count: 1, sum_cents: 100 },
-      ['card', Date.new(2015,1,1)] => { count: 1, sum_cents: 200 },
-      ['cash', Date.new(2014,1,1)] => { count: 1, sum_cents: 300 },
-      ['cash', Date.new(2015,1,1)] => { count: 2, sum_cents: 900 }
+      ['card', Time.utc(2014,1,1)] => { count: 1, sum_cents: 100 },
+      ['card', Time.utc(2015,1,1)] => { count: 1, sum_cents: 200 },
+      ['cash', Time.utc(2014,1,1)] => { count: 1, sum_cents: 300 },
+      ['cash', Time.utc(2015,1,1)] => { count: 2, sum_cents: 900 }
     }
     assert_equal expected, Order.group(:kind).group_by_year(:created_at, default_value: {}).calculate_all(:count, :sum_cents)
   end
