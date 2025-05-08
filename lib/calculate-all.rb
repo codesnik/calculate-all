@@ -51,12 +51,11 @@ module CalculateAll
       # If only one value, return a single value, else return a hash
       if return_plain_values
         value = row.last
+        value = block.call(value) if block
       else
         value = functions.keys.zip(row.last(functions.size)).to_h
+        value = block.call(**value) if block
       end
-
-      # Call the block for each group
-      value = block.call(value) if block
 
       # Return unwrapped hash directly for scope without any .group()
       return value if group_values.empty?
