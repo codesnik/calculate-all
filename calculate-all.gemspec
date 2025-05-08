@@ -6,7 +6,7 @@ require 'calculate-all/version'
 Gem::Specification.new do |spec|
   spec.name          = "calculate-all"
   spec.version       = CalculateAll::VERSION
-  spec.authors       = ["codesnik"]
+  spec.authors       = ["Alexey Trofimenko"]
   spec.email         = ["aronaxis@gmail.com"]
 
   spec.summary       = %q{Fetch from database results of several aggregate functions at once}

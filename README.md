@@ -40,9 +40,9 @@ stats = Order.group(:department_id).group(:payment_method).calculate_all(
 
 Active Record allows to use most common DB aggregate functions, COUNT(), MAX(), MIN(), AVG(), SUM() really easy.
 But there's a whole world of wonderful other functions in
-[Postgres](http://www.postgresql.org/docs/9.5/static/functions-aggregate.html) which I can't recommend enough
+[Postgres](http://www.postgresql.org/docs/current/functions-aggregate.html) which I can't recommend enough
 if you going to have any work with statistics and BI on your data, though MySQL has something
-[too](http://dev.mysql.com/doc/refman/5.7/en/group-by-functions.html).
+[too](https://dev.mysql.com/doc/refman/9.3/en/aggregate-functions.html).
 
 Also, in many cases you'll need several metrics at once, and database often has to perform a full scan on
 the table for each metric, but it as well can calculate them all in one scan and one request.
