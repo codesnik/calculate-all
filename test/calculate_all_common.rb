@@ -132,6 +132,17 @@ module CalculateAllCommon
       'RUB' => '2 orders, 350 cents average',
       'USD' => '3 orders, 266 cents average',
     }
+    assert_equal expected, Order.group(:currency).calculate_all(:count, :avg_cents) { |stats|
+      "#{stats[:count]} orders, #{stats[:avg_cents].to_i} cents average"
+    }
+  end
+
+  def test_value_wrapping_for_several_expressions_with_keyword_args
+    create_orders
+    expected = {
+      'RUB' => '2 orders, 350 cents average',
+      'USD' => '3 orders, 266 cents average',
+    }
     assert_equal expected, Order.group(:currency).calculate_all(:count, :avg_cents) { |count:, avg_cents:|
       "#{count} orders, #{avg_cents.to_i} cents average"
     }
