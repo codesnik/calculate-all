@@ -22,6 +22,8 @@ module CalculateAll
             "MAX(#{$1})"
           when /^(.*)_minimum$/, /^minimum_(.*)$/
             "MIN(#{$1})"
+          when :ids
+            'ARRAY_AGG(id)'
           else
             raise ArgumentError, "Can't recognize function alias #{key}"
           end

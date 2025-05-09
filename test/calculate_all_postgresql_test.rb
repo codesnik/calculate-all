@@ -28,4 +28,13 @@ class CalculateAllPostgresqlTest < Minitest::Test
     assert_equal expected, Order.group(:kind).calculate_all('ARRAY_AGG(currency ORDER BY id)')
   end
 
+  def test_ids_aggregation
+    create_orders
+    expected = {
+      'RUB' => Order.where(currency: 'RUB').ids,
+      'USD' => Order.where(currency: 'USD').ids
+    }
+    assert_equal(expected, Order.group(:currency).calculate_all(:ids))
+  end
+
 end
