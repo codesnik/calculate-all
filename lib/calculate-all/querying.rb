@@ -1,5 +1,7 @@
 module CalculateAll
   module Querying
-    delegate :calculate_all, to: :all
+    def calculate_all(*args, **kwargs, &block)
+      all.calculate_all(*args, **kwargs, &block)
+    end
   end
 end
