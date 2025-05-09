@@ -1,3 +1,5 @@
+require 'active_support'
+require 'active_record'
 require 'calculate-all/version'
 require 'calculate-all/helpers'
 require 'calculate-all/querying'
