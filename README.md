@@ -1,10 +1,11 @@
 # CalculateAll
 
-Provides `#calculate_all` method on your Active Record models, scopes and relations.
-It's a little addition to Active Record's `#count`, `#maximum`, `#minimum`, `#average` and `#sum`.
-It allows to fetch all of the above and any other aggregate functions results in one request, with respect to grouping.
+Provides the `#calculate_all` method for your Active Record models, scopes and relations.
+It's a small addition to Active Record's `#count`, `#maximum`, `#minimum`, `#average` and `#sum`.
+It allows you to fetch all of the above, as well as other aggregate function results,
+in a single request, with support for grouping.
 
-Tested only with Postgres and MySQL only right now. It relies on automatic values type-casting of underlying driver.
+Currently tested only with Postgres and MySQL. It relies on the underlying driver’s automatic value type-casting.
 
 ## Usage
 
@@ -38,21 +39,20 @@ stats = Order.group(:department_id).group(:payment_method).calculate_all(
 
 ## Rationale
 
-Active Record allows to use most common DB aggregate functions, COUNT(), MAX(), MIN(), AVG(), SUM() really easy.
-But there's a whole world of wonderful other functions in
-[Postgres](http://www.postgresql.org/docs/current/functions-aggregate.html) which I can't recommend enough
-if you going to have any work with statistics and BI on your data, though MySQL has something
-[too](https://dev.mysql.com/doc/refman/9.3/en/aggregate-functions.html).
+Active Record makes it really easy to use most common database aggregate functions like COUNT(), MAX(), MIN(), AVG(), SUM().
+But there's a whole world of other [powerful functions](http://www.postgresql.org/docs/current/functions-aggregate.html) in
+Postgres, which I can’t recommend enough, especially if you’re working with statistics or business intelligence.
+MySQL has some useful ones [as well](https://dev.mysql.com/doc/refman/9.3/en/aggregate-functions.html).
 
-Also, in many cases you'll need several metrics at once, and database often has to perform a full scan on
-the table for each metric, but it as well can calculate them all in one scan and one request.
+Also, in many cases, you’ll need multiple metrics at once. Typically, the database performs a full scan of the table for each metric.
+However, it can calculate all of them in a single scan and a single request.
 
 `#calculate_all` to the rescue!
 
 ## Arguments
 
-`#calculate_all` accepts a list of expression aliases and/or expression mapping.
-It could be either one string of SQL,
+`#calculate_all` accepts a list of expression aliases and/or expression mappings.
+It can be a single string of SQL,
 
 ```ruby
   Model.calculate_all('SUM(price) / COUNT(DISTINCT user_id)')
@@ -63,7 +63,7 @@ a hash of expressions with arbitrary symbol keys
 ```ruby
   Model.calculate_all(total: 'COUNT(*)', average_spendings: 'SUM(price) / COUNT(DISTINCT user_id)')
 ```
-or a list of one or more symbols without expressions, in which case `#calculate_all` tries to guess
+and/or a list of one or more symbols without expressions, in which case `#calculate_all` tries to guess
 what you wanted from it.
 
 ```ruby
@@ -90,16 +90,16 @@ so result type depends on arguments and on groupings.
 If you have no `group()` on underlying scope, `#calculate_all` will return just one result.
 
 ```ruby
-# same as Order.distinct.count(:user_id), so, probably useless example
-# but you can have any expression with aggregate functions there.
+# Same as Order.distinct.count(:user_id), so probably a useless example.
+# But you can use any expression with aggregate functions there.
 Order.calculate_all('COUNT(DISTINCT user_id)')
 # => 50
 ```
 
-If you have one group, it will return hash of results, with simple keys.
+If you have a single `group()`, it will return a hash of results with simple keys.
 
 ```ruby
-# again, Order.group(:department_id).distinct.count(:user_id) would do the same
+# Again, Order.group(:department_id).distinct.count(:user_id) would do the same.
 Order.group(:department_id).calculate_all(:count_distinct_user_id)
 # => {
 #   1 => 20,
@@ -120,8 +120,8 @@ Order.group(:department_id).group(:department_method).calculate_all(:count_disti
 # }
 ```
 
-If you provide just one argument to `#calculate_all`, its calculated value will be returned as is.
-Otherwise results would be returned as hash(es) with symbol keys.
+If you provide only one argument to `#calculate_all`, its calculated value will be returned as-is.
+Otherwise, the results will be returned as hash(es) with symbol keys.
 
 so, `Order.calculate_all(:count)` will return just a single integer, but
 
@@ -134,8 +134,8 @@ Order.group(:department_id).group(:payment_method).calculate_all(:min_price, exp
 # }
 ```
 
-You can pass block to calculate_all. Rows will be passed to it and returned value will be used instead of
-row in result hash (or returned as is if there's no grouping)
+You can pass a block to `calculate_all`. Rows will be passed to it, and returned value will be used instead of
+the row in the result hash (or returned as-is if there's no grouping).
 
 ```ruby
 Order.group(:country_id).calculate_all(:count, :avg_price) { |count:, avg_price:|
@@ -162,13 +162,13 @@ calculate-all should work with [groupdate](https://github.com/ankane/groupdate) 
 
 ```ruby
 Order.group_by_year(:created_at, last: 5).calculate_all(:price_min, :price_max)
-=> {
-  Sun, 01 Jan 2012 => {},
-  Tue, 01 Jan 2013 => {},
-  Wed, 01 Jan 2014 => {},
-  Thu, 01 Jan 2015 => {},
-  Fri, 01 Jan 2016 => {:price_min=>100, :price_max=>500}
-}
+# => {
+#   Sun, 01 Jan 2012 => {},
+#   Tue, 01 Jan 2013 => {},
+#   Wed, 01 Jan 2014 => {},
+#   Thu, 01 Jan 2015 => {},
+#   Fri, 01 Jan 2016 => {:price_min=>100, :price_max=>500}
+# }
 ```
 
 ## Installation
@@ -189,7 +189,9 @@ Or install it yourself as:
 
 ## Development
 
-After checking out the repo, run `bin/setup` to install dependencies. Then, run `rake test` to run the tests. You can also run `bin/console` for an interactive prompt that will allow you to experiment.
+After checking out the repo, run `bin/setup` to install dependencies. Then, run `rake test` to run the tests.
+Run `BUNDLE_GEMFILE=gemfiles/activerecord60.gemfile bundle` then `BUNDLE_GEMFILE=gemfiles/activerecord60.gemfile rake`
+to test agains specific active record version.
 
 To install this gem onto your local machine, run `bundle exec rake install`. To release a new version, update the version number in `version.rb`, and then run `bundle exec rake release`, which will create a git tag for the version, push git commits and tags, and push the `.gem` file to [rubygems.org](https://rubygems.org).
 
