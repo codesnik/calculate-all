@@ -5,78 +5,71 @@ require "calculate-all/helpers"
 require "calculate-all/querying"
 
 module CalculateAll
-  # Method to aggregate function results in one request
+  # Calculates multiple aggregate values on a scope in one request, similarly to #calculate
   def calculate_all(*function_aliases, **functions, &block)
-    # If only one function_alias is given, the result can be just a single value
-    # So return [{ cash: 3 }] instead of [{ cash: { count: 3 }}]
-    if function_aliases.size == 1 && functions == {}
+    # If only one aggregate is given without explicit naming,
+    # return row(s) directly without wrapping in Hash
+    if function_aliases.size == 1 && functions.size == 0
       return_plain_values = true
     end
 
     # Convert the function_aliases to actual SQL
-    functions.merge!(
-      CalculateAll::Helpers.decode_function_aliases(function_aliases)
-    )
+    functions.merge!(CalculateAll::Helpers.decode_function_aliases(function_aliases))
 
     # Check if any functions are given
     if functions == {}
       raise ArgumentError, "provide at least one function to calculate"
     end
 
-    # If function is called without a group, the pluck method will still return
-    # an array but it is an array with the final results instead of each group
-    # The plain_rows boolean states how the results should be used
-    if functions.size == 1 && group_values.size == 0
-      plain_rows = true
-    end
-
-    # Final output hash
+    columns = (group_values.map(&:to_s) + functions.values).map { |sql| Arel.sql(sql) }
     results = {}
-
-    # Fetch all the requested calculations from the database
-    # Note the map(&:to_s). It is required since groupdate returns a
-    # Groupdate::OrderHack instead of a string for the group_values which is not
-    # accepted by ActiveRecord's pluck method.
-    sql_snippets = group_values.map(&:to_s) + functions.values
-    # Fix DEPRECATION WARNING:
-    # Dangerous query method, will be disallowed in Rails 6.0
-    # using Arel.sql() to silence the warning
-    # https://github.com/rails/rails/commit/310c3a8f2d043f3d00d3f703052a1e160430a2c2
-    pluck(*sql_snippets.map { |sql| Arel.sql(sql) }).each do |row|
-      # If no grouping, make sure it is still a results array
-      row = [row] if plain_rows
-
-      # If only one value, return a single value, else return a hash
-      if return_plain_values
-        value = row.last
-        value = block.call(value) if block
-      else
-        value = functions.keys.zip(row.last(functions.size)).to_h
-        value = block.call(**value) if block
+    pluck(*columns).each do |row|
+      # If pluck called without any groups and with a single argument,
+      # it will return an array of simple results instead of array of arrays
+      if functions.size == 1 && group_values.size == 0
+        row = [row]
       end
 
-      # Return unwrapped hash directly for scope without any .group()
-      return value if group_values.empty?
-
-      # If only one group is provided, the resulting key is just the group name
-      # if multiple group methods are provided, the key will be an array.
-      key = if group_values.size == 1
-        row.first
+      key = if group_values.size == 0
+        :ALL
+      elsif group_values.size == 1
+        # If only one group is provided, the resulting key is just a scalar value
+        row.shift
       else
-        row.first(group_values.size)
+        # if multiple groups, the key will be an array.
+        row.shift(group_values.size)
       end
 
-      # Set the value in the output array
+      value = if return_plain_values
+        row.last
+      else
+        # it is possible to have more actual group values returned than group_values.size
+        functions.keys.zip(row.last(functions.size)).to_h
+      end
+
       results[key] = value
     end
 
+    # Additional groupdate magic of filling empty periods with defaults
     if defined?(Groupdate.process_result)
-      default_value = return_plain_values ? nil : {}
+      # Since that hash is the same instance for every backfilled raw, at least
+      # freeze it to prevent surprize modifications in calling code.
+      default_value = return_plain_values ? nil : {}.freeze
       results = Groupdate.process_result(self, results, default_value: default_value)
     end
 
-    # Return the output array
-    results
+    if block
+      results.transform_values! do |value|
+        return_plain_values ? block.call(value) : block.call(**value)
+      end
+    end
+
+    # Return unwrapped hash directly for scope without any .group()
+    if group_values.empty?
+      results[:ALL]
+    else
+      results
+    end
   end
 end
 

@@ -5,7 +5,7 @@ It's a small addition to Active Record's `#count`, `#maximum`, `#minimum`, `#ave
 It allows you to fetch all of the above, as well as other aggregate function results,
 in a single request, with support for grouping.
 
-Currently tested with Postgres, MySQL and sqlite3.
+Currently tested with Postgres, MySQL and sqlite3, ruby >= 2.3, rails >= 4, groupdate >= 4.
 
 ## Usage
 
@@ -28,14 +28,16 @@ stats = Order.group(:department_id).group(:payment_method).calculate_all(
 #     count_distinct_user_id: 5,
 #     price_max: 500,
 #     price_min: 100,
-#     price_avg: #<BigDecimal:7ff5932ff3d8,'0.3E3',9(27)>,
-#     price_median: #<BigDecimal:7ff5932ff3c2,'0.4E3',9(27)>
+#     price_avg: 0.3e3,
+#     price_median: 0.4e3
 #   },
 #   [1, "card"] => {
 #     ...
 #   }
 # }
 ```
+
+(median example works in Postgres only, but check out very cool https://github.com/ankane/active_median)
 
 ## Rationale
 
@@ -81,6 +83,9 @@ It's not so smart right now, but here's a cheatsheet:
 | `:min_column1`, `:column1_min`, `:minimum_column1`, `:column1_minimum` | `MIN(column1)`
 | `:avg_column1`, `:column1_avg`, `:average_column1`, `:column1_average` | `AVG(column1)`
 | `:sum_column1`, `:column1_sum`                                         | `SUM(column1)`
+
+Please don't put values from unverified sources (like HTML form or javascript call) into expression list,
+it could result in malicious SQL injection.
 
 ## Result
 
@@ -170,6 +175,8 @@ Order.group_by_year(:created_at, last: 5).calculate_all(:price_min, :price_max)
 #   Fri, 01 Jan 2016 => {:price_min=>100, :price_max=>500}
 # }
 ```
+
+It works even with groupdate < 4, though you'd have to explicitly provide `default_value: {}` for blank periods.
 
 ## Installation
 
