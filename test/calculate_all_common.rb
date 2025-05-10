@@ -1,3 +1,5 @@
+require "groupdate"
+
 module CalculateAllCommon
   class ::Order < ActiveRecord::Base
   end
@@ -21,7 +23,11 @@ module CalculateAllCommon
     ActiveRecord::Base.connection.adapter_name == "SQLite"
   end
 
-  def test_that_it_has_a_version_number
+  def old_groupdate?
+    Gem::Version.new(Groupdate::VERSION) < Gem::Version.new("4.0.0")
+  end
+
+  def test_it_has_a_version_number
     refute_nil ::CalculateAll::VERSION
   end
 
@@ -100,18 +106,67 @@ module CalculateAllCommon
     assert_equal expected, Order.group(:kind).calculate_all(:count)
   end
 
-  def test_groupdate_compatibility
-    require "groupdate"
-    skip if sqlite? && Gem::Version.new(Groupdate::VERSION) < Gem::Version.new("4.0.0")
+  def test_groupdate_with_simple_values
+    skip if sqlite? && old_groupdate?
 
     create_orders
     expected = {
-      ["card", Date.new(2014, 1, 1)] => {count: 1, sum_cents: 100},
-      ["card", Date.new(2015, 1, 1)] => {count: 1, sum_cents: 200},
-      ["cash", Date.new(2014, 1, 1)] => {count: 1, sum_cents: 300},
-      ["cash", Date.new(2015, 1, 1)] => {count: 2, sum_cents: 900}
+      Date.new(2014) => 2,
+      Date.new(2015) => nil,
+      Date.new(2016) => 3
     }
-    assert_equal expected, Order.group(:kind).group_by_year(:created_at).calculate_all(:count, :sum_cents)
+    defaults = old_groupdate? ? {default_value: nil} : {}
+    assert_equal expected, Order.group_by_year(:created_at, **defaults).calculate_all(:count)
+  end
+
+  def test_groupdate_with_several_groups
+    skip if sqlite? && old_groupdate?
+
+    create_orders
+    expected = {
+      ["cash", Date.new(2014)] => {count: 1, sum_cents: 300},
+      ["card", Date.new(2014)] => {count: 1, sum_cents: 100},
+      ["cash", Date.new(2015)] => {},
+      ["card", Date.new(2015)] => {},
+      ["cash", Date.new(2016)] => {count: 2, sum_cents: 900},
+      ["card", Date.new(2016)] => {count: 1, sum_cents: 200}
+    }
+    defaults = old_groupdate? ? {default_value: {}} : {}
+    assert_equal expected, Order.group(:kind).group_by_year(:created_at, **defaults).calculate_all(:count, :sum_cents)
+  end
+
+  def test_groupdate_with_value_wrapping
+    skip if old_groupdate?
+
+    create_orders
+    expected = {
+      Date.new(2014) => "2 orders",
+      Date.new(2015) => "none",
+      Date.new(2016) => "3 orders"
+    }
+    assert_equal expected, Order.group_by_year(:created_at).calculate_all(:count) { |count| count ? "#{count} orders" : "none" }
+  end
+
+  def test_groupdate_with_several_groups_and_value_wrapping
+    skip if old_groupdate?
+
+    create_orders
+    expected = {
+      ["cash", Date.new(2014)] => "1 orders, 300 total",
+      ["card", Date.new(2014)] => "1 orders, 100 total",
+      ["cash", Date.new(2015)] => "0 orders",
+      ["card", Date.new(2015)] => "0 orders",
+      ["cash", Date.new(2016)] => "2 orders, 900 total",
+      ["card", Date.new(2016)] => "1 orders, 200 total"
+    }
+
+    assert_equal expected, Order.group(:kind).group_by_year(:created_at).calculate_all(:count, :sum_cents) { |count: 0, sum_cents: nil|
+      if sum_cents
+        "#{count} orders, #{sum_cents} total"
+      else
+        "#{count} orders"
+      end
+    }
   end
 
   def test_value_wrapping_one_expression_and_no_groups
@@ -152,13 +207,23 @@ module CalculateAllCommon
     }
   end
 
+  def test_value_wrapping_for_several_expressions_with_constructor
+    require "ostruct"
+    create_orders
+    expected = {
+      "RUB" => OpenStruct.new(count: 2, max_cents: 500),
+      "USD" => OpenStruct.new(count: 3, max_cents: 400)
+    }
+    assert_equal expected, Order.group(:currency).calculate_all(:count, :max_cents, &OpenStruct.method(:new))
+  end
+
   def create_orders
     Order.create! [
       {kind: "card", currency: "USD", cents: 100, created_at: Time.utc(2014, 1, 3)},
-      {kind: "card", currency: "RUB", cents: 200, created_at: Time.utc(2015, 1, 5)},
+      {kind: "card", currency: "RUB", cents: 200, created_at: Time.utc(2016, 1, 5)},
       {kind: "cash", currency: "USD", cents: 300, created_at: Time.utc(2014, 1, 10)},
-      {kind: "cash", currency: "USD", cents: 400, created_at: Time.utc(2015, 5, 10)},
-      {kind: "cash", currency: "RUB", cents: 500, created_at: Time.utc(2015, 10, 10)}
+      {kind: "cash", currency: "USD", cents: 400, created_at: Time.utc(2016, 5, 10)},
+      {kind: "cash", currency: "RUB", cents: 500, created_at: Time.utc(2016, 10, 10)}
     ]
   end
 end

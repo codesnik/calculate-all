@@ -2,7 +2,7 @@ module CalculateAll
   module Helpers
     module_function
 
-    # Method to convert function aliases like :count to SQL commands like 'COUNT(*)'
+    # Convert aliases like :count to SQL aggregate functions like 'COUNT(*)'
     def decode_function_aliases(aliases)
       aliases.map do |key|
         function =
