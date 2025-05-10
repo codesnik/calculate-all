@@ -34,16 +34,8 @@ module CalculateAll
     # Final output hash
     results = {}
 
-    # Fetch all the requested calculations from the database
-    # Note the map(&:to_s). It is required since groupdate returns a
-    # Groupdate::OrderHack instead of a string for the group_values which is not
-    # accepted by ActiveRecord's pluck method.
-    sql_snippets = group_values.map(&:to_s) + functions.values
-    # Fix DEPRECATION WARNING:
-    # Dangerous query method, will be disallowed in Rails 6.0
-    # using Arel.sql() to silence the warning
-    # https://github.com/rails/rails/commit/310c3a8f2d043f3d00d3f703052a1e160430a2c2
-    pluck(*sql_snippets.map { |sql| Arel.sql(sql) }).each do |row|
+    columns = (group_values.map(&:to_s) + functions.values).map { |sql| Arel.sql(sql) }
+    pluck(*columns).each do |row|
 
       # If no grouping, make sure it is still a results array
       row = [row] if plain_rows
@@ -72,9 +64,9 @@ module CalculateAll
       results[key] = value
     end
 
+    # Convert timestamps in keys to dates if needed.
     if defined?(Groupdate.process_result)
-      default_value = return_plain_values ? nil : {}
-      results = Groupdate.process_result(self, results, default_value: default_value)
+      results = Groupdate.process_result(self, results)
     end
 
     # Return the output array

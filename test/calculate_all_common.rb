@@ -19,7 +19,7 @@ module CalculateAllCommon
     Order.delete_all
   end
 
-  def test_that_it_has_a_version_number
+  def test_it_has_a_version_number
     refute_nil ::CalculateAll::VERSION
   end
 
@@ -102,10 +102,12 @@ module CalculateAllCommon
     require 'groupdate'
     create_orders
     expected = {
-      ['card', Date.new(2014,1,1)] => { count: 1, sum_cents: 100 },
-      ['card', Date.new(2015,1,1)] => { count: 1, sum_cents: 200 },
-      ['cash', Date.new(2014,1,1)] => { count: 1, sum_cents: 300 },
-      ['cash', Date.new(2015,1,1)] => { count: 2, sum_cents: 900 }
+      ['cash', Date.new(2014)] => { count: 1, sum_cents: 300 },
+      ['card', Date.new(2014)] => { count: 1, sum_cents: 100 },
+      ['cash', Date.new(2015)] => nil,
+      ['card', Date.new(2015)] => nil,
+      ['cash', Date.new(2016)] => { count: 2, sum_cents: 900 },
+      ['card', Date.new(2016)] => { count: 1, sum_cents: 200 }
     }
     assert_equal expected, Order.group(:kind).group_by_year(:created_at).calculate_all(:count, :sum_cents)
   end
@@ -151,10 +153,10 @@ module CalculateAllCommon
   def create_orders
     Order.create! [
       { kind: 'card', currency: 'USD', cents: 100, created_at: Time.utc(2014,1,3) },
-      { kind: 'card', currency: 'RUB', cents: 200, created_at: Time.utc(2015,1,5) },
+      { kind: 'card', currency: 'RUB', cents: 200, created_at: Time.utc(2016,1,5) },
       { kind: 'cash', currency: 'USD', cents: 300, created_at: Time.utc(2014,1,10) },
-      { kind: 'cash', currency: 'USD', cents: 400, created_at: Time.utc(2015,5,10) },
-      { kind: 'cash', currency: 'RUB', cents: 500, created_at: Time.utc(2015,10,10) },
+      { kind: 'cash', currency: 'USD', cents: 400, created_at: Time.utc(2016,5,10) },
+      { kind: 'cash', currency: 'RUB', cents: 500, created_at: Time.utc(2016,10,10) },
     ]
   end
 end
