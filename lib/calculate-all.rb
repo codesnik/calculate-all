@@ -1,13 +1,12 @@
-require 'active_support'
-require 'active_record'
-require 'calculate-all/version'
-require 'calculate-all/helpers'
-require 'calculate-all/querying'
+require "active_support"
+require "active_record"
+require "calculate-all/version"
+require "calculate-all/helpers"
+require "calculate-all/querying"
 
 module CalculateAll
   # Method to aggregate function results in one request
   def calculate_all(*function_aliases, **functions, &block)
-
     # If only one function_alias is given, the result can be just a single value
     # So return [{ cash: 3 }] instead of [{ cash: { count: 3 }}]
     if function_aliases.size == 1 && functions == {}
@@ -21,7 +20,7 @@ module CalculateAll
 
     # Check if any functions are given
     if functions == {}
-      raise ArgumentError, 'provide at least one function to calculate'
+      raise ArgumentError, "provide at least one function to calculate"
     end
 
     # If function is called without a group, the pluck method will still return
@@ -44,7 +43,6 @@ module CalculateAll
     # using Arel.sql() to silence the warning
     # https://github.com/rails/rails/commit/310c3a8f2d043f3d00d3f703052a1e160430a2c2
     pluck(*sql_snippets.map { |sql| Arel.sql(sql) }).each do |row|
-
       # If no grouping, make sure it is still a results array
       row = [row] if plain_rows
 
@@ -62,10 +60,10 @@ module CalculateAll
 
       # If only one group is provided, the resulting key is just the group name
       # if multiple group methods are provided, the key will be an array.
-      if group_values.size == 1
-        key = row.first
+      key = if group_values.size == 1
+        row.first
       else
-        key = row.first(group_values.size)
+        row.first(group_values.size)
       end
 
       # Set the value in the output array

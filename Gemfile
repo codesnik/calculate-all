@@ -9,3 +9,5 @@ gem "groupdate", "~> 5.2.0"
 gem "pg"
 gem "mysql2"
 gem "sqlite3", "~> 1.4"
+
+gem "standardrb", require: false
