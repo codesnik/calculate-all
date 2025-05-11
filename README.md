@@ -5,7 +5,7 @@ It's a small addition to Active Record's `#count`, `#maximum`, `#minimum`, `#ave
 It allows you to fetch all of the above, as well as other aggregate function results,
 in a single request, with support for grouping.
 
-Currently tested only with Postgres and MySQL. It relies on the underlying driver’s automatic value type-casting.
+Currently tested with Postgres, MySQL and sqlite3.
 
 ## Usage
 

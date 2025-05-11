@@ -12,11 +12,14 @@ module CalculateAllCommon
       t.integer :cents
       t.timestamp :created_at
     end
-    ::Order.establish_connection db_credentials
   end
 
   def teardown
     Order.delete_all
+  end
+
+  def sqlite?
+    ActiveRecord::Base.connection.adapter_name == "SQLite"
   end
 
   def test_that_it_has_a_version_number
@@ -100,6 +103,8 @@ module CalculateAllCommon
 
   def test_groupdate_compatibility
     require 'groupdate'
+    skip if sqlite? && Gem::Version.new(Groupdate::VERSION) < Gem::Version.new('4.0.0')
+
     create_orders
     expected = {
       ['card', Date.new(2014,1,1)] => { count: 1, sum_cents: 100 },
