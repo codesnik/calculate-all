@@ -1,10 +1,10 @@
-$LOAD_PATH.unshift File.expand_path('../../lib', __FILE__)
+$LOAD_PATH.unshift File.expand_path("../../lib", __FILE__)
 
-require 'logger'
-require 'active_record'
+require "logger"
+require "active_record"
 
-require 'calculate-all'
+require "calculate-all"
 
-require 'minitest/autorun'
+require "minitest/autorun"
 
-require 'calculate_all_common'
+require "calculate_all_common"

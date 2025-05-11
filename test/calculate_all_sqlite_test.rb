@@ -1,9 +1,8 @@
-require 'test_helper'
+require "test_helper"
 
 class CalculateAllSqliteTest < Minitest::Test
-
   def db_credentials
-    { adapter: 'sqlite3', database: ':memory:' }
+    {adapter: "sqlite3", database: ":memory:"}
   end
 
   def setup
@@ -12,5 +11,4 @@ class CalculateAllSqliteTest < Minitest::Test
   end
 
   include CalculateAllCommon
-
 end

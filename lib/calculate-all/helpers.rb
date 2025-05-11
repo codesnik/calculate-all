@@ -1,6 +1,7 @@
 module CalculateAll
   module Helpers
     module_function
+
     # Method to convert function aliases like :count to SQL commands like 'COUNT(*)'
     def decode_function_aliases(aliases)
       aliases.map do |key|
@@ -9,7 +10,7 @@ module CalculateAll
           when String
             key
           when :count
-            'COUNT(*)'
+            "COUNT(*)"
           when /^(.*)_distinct_count$/, /^count_distinct_(.*)$/
             "COUNT(DISTINCT #{$1})"
           when /^(.*)_(count|sum|max|min|avg)$/
