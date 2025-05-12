@@ -1,6 +1,7 @@
-## unreleased
+## 0.2.2
 
 * Added support for Groupdate 4+ (Andrew <acekane1@gmail.com>)
+* Tested with sqlite3, ruby 3.1, Rails 7
 
 ## 0.2.1
 
