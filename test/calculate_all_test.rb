@@ -1,17 +1,24 @@
+require "test_helper"
 require "groupdate"
 
-module CalculateAllCommon
-  class ::Order < ActiveRecord::Base
-  end
+class Order < ActiveRecord::Base
+end
 
+class CalculateAllTest < Minitest::Test
   def setup
-    ActiveRecord::Migration.verbose = false
-    ActiveRecord::Base.establish_connection db_credentials
-    ActiveRecord::Migration.create_table :orders, force: true do |t|
-      t.string :kind
-      t.string :currency
-      t.integer :cents
-      t.timestamp :created_at
+    @@connected ||= begin
+      if ENV["VERBOSE"]
+        ActiveRecord::Base.logger = ActiveSupport::Logger.new(STDOUT)
+      end
+      ActiveRecord::Migration.verbose = false
+      ActiveRecord::Base.establish_connection db_credentials
+      ActiveRecord::Migration.create_table :orders, force: true do |t|
+        t.string :kind
+        t.string :currency
+        t.integer :cents
+        t.timestamp :created_at
+      end
+      true
     end
   end
 
@@ -19,12 +26,42 @@ module CalculateAllCommon
     Order.delete_all
   end
 
+  def db_credentials
+    if postgresql?
+      {adapter: "postgresql", database: "calculate_all_test"}
+    elsif mysql?
+      {adapter: "mysql2", database: "calculate_all_test", username: "root"}
+    elsif sqlite?
+      {adapter: "sqlite3", database: ":memory:"}
+    else
+      raise "Set ENV['ADAPTER']"
+    end
+  end
+
+  def postgresql?
+    ENV["ADAPTER"] == "postgresql"
+  end
+
+  def mysql?
+    ENV["ADAPTER"] == "mysql"
+  end
+
   def sqlite?
-    ActiveRecord::Base.connection.adapter_name == "SQLite"
+    ENV["ADAPTER"] == "sqlite"
   end
 
   def old_groupdate?
     Gem::Version.new(Groupdate::VERSION) < Gem::Version.new("4.0.0")
+  end
+
+  def create_orders
+    Order.create! [
+      {kind: "card", currency: "USD", cents: 100, created_at: Time.utc(2014, 1, 3)},
+      {kind: "card", currency: "RUB", cents: 200, created_at: Time.utc(2016, 1, 5)},
+      {kind: "cash", currency: "USD", cents: 300, created_at: Time.utc(2014, 1, 10)},
+      {kind: "cash", currency: "USD", cents: 400, created_at: Time.utc(2016, 5, 10)},
+      {kind: "cash", currency: "RUB", cents: 500, created_at: Time.utc(2016, 10, 10)}
+    ]
   end
 
   def test_it_has_a_version_number
@@ -217,13 +254,22 @@ module CalculateAllCommon
     assert_equal expected, Order.group(:currency).calculate_all(:count, :max_cents, &OpenStruct.method(:new))
   end
 
-  def create_orders
-    Order.create! [
-      {kind: "card", currency: "USD", cents: 100, created_at: Time.utc(2014, 1, 3)},
-      {kind: "card", currency: "RUB", cents: 200, created_at: Time.utc(2016, 1, 5)},
-      {kind: "cash", currency: "USD", cents: 300, created_at: Time.utc(2014, 1, 10)},
-      {kind: "cash", currency: "USD", cents: 400, created_at: Time.utc(2016, 5, 10)},
-      {kind: "cash", currency: "RUB", cents: 500, created_at: Time.utc(2016, 10, 10)}
-    ]
+  def test_returns_array_on_array_aggregate
+    skip unless postgresql?
+
+    create_orders
+    expected = %W[USD RUB USD USD RUB]
+    assert_equal expected, Order.calculate_all("ARRAY_AGG(currency ORDER BY id)")
+  end
+
+  def test_returns_array_on_grouped_array_aggregate
+    skip unless postgresql?
+
+    create_orders
+    expected = {
+      "card" => ["USD", "RUB"],
+      "cash" => ["USD", "USD", "RUB"]
+    }
+    assert_equal expected, Order.group(:kind).calculate_all("ARRAY_AGG(currency ORDER BY id)")
   end
 end
