@@ -1,50 +1,61 @@
 # CalculateAll
 
 Provides the `#calculate_all` method for your Active Record models, scopes and relations.
-It's a small addition to Active Record's `#count`, `#maximum`, `#minimum`, `#average` and `#sum`.
+It's a small addition to Active Record's `#count`, `#maximum`, `#minimum`, `#average`, `#sum`
+and `#calculate`.
 It allows you to fetch all of the above, as well as other aggregate function results,
 in a single request, with support for grouping.
 
-Currently tested with Postgres, MySQL and sqlite3, ruby >= 2.3, rails >= 4, groupdate >= 4.
+Should be useful for dashboards, timeseries stats, and charts.
+
+Currently tested with PostgreSQL, MySQL and SQLite3, ruby >= 2.3, rails >= 4, groupdate >= 4.
 
 ## Usage
 
+(example SQL snippets are given for PostgreSQL)
+
 ```ruby
-stats = Order.group(:department_id).group(:payment_method).calculate_all(
+stats = Order.group(:department_id).group(:payment_method).order(:payment_method).calculate_all(
+  :payment_method,
   :count,
-  :count_distinct_user_id,
   :price_max,
   :price_min,
   :price_avg,
-  price_median: 'percentile_cont(0.5) within group (order by price desc)'
+  total_users: :count_distinct_user_id,
+  price_median: "percentile_cont(0.5) within group (order by price asc)",
+  plan_ids: "array_agg(distinct plan_id order by plan_id)",
+  earnings: "sum(price) filter (where status = 'paid')"
 )
-#
-#   (2.2ms)  SELECT department_id, payment_method, percentile_cont(0.5) within group (order by price desc),
-#      COUNT(*), COUNT(DISTINCT user_id), MAX(price), MIN(price), AVG(price) FROM "orders" GROUP BY "department_id", "payment_method"
-#
+#   Order Pluck (20.0ms)  SELECT "orders"."department_id", "payment_method", COUNT(*), MAX(price), MIN(price), AVG(price),
+#        COUNT(DISTINCT user_id), percentile_cont(0.5) within group (order by price asc),
+#        array_agg(distinct plan_id order by plan_id), sum(price) filter (where status = 'paid')
+#      FROM "orders" GROUP BY "orders"."department_id", "payment_method" ORDER BY "payment_method" ASC
 # => {
-#   [1, "cash"] => {
+#   [1, "card"] => {
+#     payment_method: "card",
 #     count: 10,
-#     count_distinct_user_id: 5,
 #     price_max: 500,
 #     price_min: 100,
 #     price_avg: 0.3e3,
-#     price_median: 0.4e3
+#     total_users: 5,
+#     price_median: 0.4e3,
+#     plan_ids: [4, 7, 12],
+#     earnings: 2340
 #   },
-#   [1, "card"] => {
+#   [1, "cash"] => {
 #     ...
 #   }
 # }
 ```
 
-(median example works in Postgres only, but check out very cool https://github.com/ankane/active_median)
-
 ## Rationale
 
 Active Record makes it really easy to use most common database aggregate functions like COUNT(), MAX(), MIN(), AVG(), SUM().
-But there's a whole world of other [powerful functions](http://www.postgresql.org/docs/current/functions-aggregate.html) in
-Postgres, which I can’t recommend enough, especially if you’re working with statistics or business intelligence.
-MySQL has some useful ones [as well](https://dev.mysql.com/doc/refman/9.3/en/aggregate-functions.html).
+But there's a whole world of other aggregate functions in
+[PostgreSQL](http://www.postgresql.org/docs/current/functions-aggregate.html),
+[MySQL](https://dev.mysql.com/doc/refman/9.3/en/aggregate-functions.html)
+and [SQLite](https://www.sqlite.org/lang_aggfunc.html)
+which I can’t recommend enough, especially if you’re working with statistics or business intelligence.
 
 Also, in many cases, you’ll need multiple metrics at once. Typically, the database performs a full scan of the table for each metric.
 However, it can calculate all of them in a single scan and a single request.
@@ -53,26 +64,21 @@ However, it can calculate all of them in a single scan and a single request.
 
 ## Arguments
 
-`#calculate_all` accepts a list of expression aliases and/or expression mappings.
-It can be a single string of SQL,
+`#calculate_all` accepts a single SQL expression with aggregate functions,
 
 ```ruby
   Model.calculate_all('SUM(price) / COUNT(DISTINCT user_id)')
 ```
 
-a hash of expressions with arbitrary symbol keys
+or arbitrary symbols and keyword arguments with SQL snippets, aggregate function shortcuts or previously given grouping values.
 
 ```ruby
-  Model.calculate_all(total: 'COUNT(*)', average_spendings: 'SUM(price) / COUNT(DISTINCT user_id)')
-```
-and/or a list of one or more symbols without expressions, in which case `#calculate_all` tries to guess
-what you wanted from it.
-
-```ruby
-  Model.calculate_all(:count, :average_price, :sum_price)
+  Model.group(:currency).calculate_all(:average_price, :currency, total: :count, average_spendings: 'SUM(price) / COUNT(DISTINCT user_id)')
 ```
 
-It's not so smart right now, but here's a cheatsheet:
+For convenience, `calculate_all(:count, :avg_column)` is the same as `caculate(count: :count, avg_column: :avg_column)`
+
+Here's a cheatsheet of recognized shortcuts:
 
 | symbol                                                                 | would fetch
 |------------------------------------------------------------------------|------------
@@ -83,6 +89,8 @@ It's not so smart right now, but here's a cheatsheet:
 | `:min_column1`, `:column1_min`, `:minimum_column1`, `:column1_minimum` | `MIN(column1)`
 | `:avg_column1`, `:column1_avg`, `:average_column1`, `:column1_average` | `AVG(column1)`
 | `:sum_column1`, `:column1_sum`                                         | `SUM(column1)`
+
+Other functions are a bit too database specific, and are better to be given with an explicit SQL snippet.
 
 Please don't put values from unverified sources (like HTML form or javascript call) into expression list,
 it could result in malicious SQL injection.
@@ -159,6 +167,17 @@ Order.group(:country_id).calculate_all(:avg_price) { |avg_price| avg_price.to_i 
 
 Order.calculate_all(:count, :max_price, &OpenStruct.method(:new))
 # => #<OpenStruct max_price=500, count=15>
+
+Stats = Data.define(:count, :max_price) do
+  # needed only for groupdate to provide defaults for empty periods
+  def initialize(count: 0, max_price: nil) = super
+end
+Order.group_by_year(:created_at).calculate_all(*Stats.members, &Stats.method(:new))
+# => {
+#   Wed, 01 Jan 2014 => #<data Stats count=2, max_price=700>,
+#   Thu, 01 Jan 2015 => #<data Stats count=0, max_price=nil>,
+#   Fri, 01 Jan 2016 => #<data Stats count=3, max_price800>
+# }
 ```
 
 ## groupdate compatibility
@@ -200,7 +219,15 @@ After checking out the repo, run `bin/setup` to install dependencies. Then, run 
 Run `BUNDLE_GEMFILE=gemfiles/activerecord60.gemfile bundle` then `BUNDLE_GEMFILE=gemfiles/activerecord60.gemfile rake`
 to test agains specific active record version.
 
-To install this gem onto your local machine, run `bundle exec rake install`. To release a new version, update the version number in `version.rb`, and then run `bundle exec rake release`, which will create a git tag for the version, push git commits and tags, and push the `.gem` file to [rubygems.org](https://rubygems.org).
+To experiment you can load a test database and jump to IRB with
+
+```sh
+   rake VERBOSE=1 CONSOLE=1 TESTOPTS="--name=test_console" test:postgresql
+```
+
+To install this gem onto your local machine, run `bundle exec rake install`. To release a new version, update the version
+number in `version.rb`, and then run `bundle exec rake release`, which will create a git tag for the version, push git commits and tags,
+and push the `.gem` file to [rubygems.org](https://rubygems.org).
 
 ## Contributing
 
