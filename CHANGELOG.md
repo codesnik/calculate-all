@@ -1,3 +1,8 @@
+## unreleased
+
+* Allow expression shortcuts as attribute values too for renaming
+* Allow grouping expressions to be returned in values too
+
 ## 0.2.2
 
 * Added support for Groupdate 4+ (Andrew <acekane1@gmail.com>)
