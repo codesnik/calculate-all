@@ -1,8 +1,5 @@
 require "active_support"
-require "active_record"
 require "calculate-all/version"
-require "calculate-all/helpers"
-require "calculate-all/querying"
 
 module CalculateAll
   # Calculates multiple aggregate values on a scope in one request, similarly to #calculate
@@ -73,14 +70,19 @@ module CalculateAll
   end
 end
 
-# Make the calculate_all method available for all ActiveRecord::Relations instances
-ActiveRecord::Relation.include CalculateAll
+ActiveSupport.on_load(:active_record) do
+  require "calculate-all/helpers"
+  require "calculate-all/querying"
 
-# Make the calculate_all method available for all ActiveRecord::Base classes
-# You can for example call Orders.calculate_all(:count, :sum_cents)
-ActiveRecord::Base.extend CalculateAll::Querying
+  # Make the calculate_all method available for all ActiveRecord::Relations instances
+  ActiveRecord::Relation.include CalculateAll
 
-# A hack for groupdate since it checks if the calculate_all method is defined
-# on the ActiveRecord::Calculations module. It is never called but it is just
-# needed for the check.
-ActiveRecord::Calculations.include CalculateAll::Querying
+  # Make the calculate_all method available for all ActiveRecord::Base classes
+  # You can for example call Orders.calculate_all(:count, :sum_cents)
+  ActiveRecord::Base.extend CalculateAll::Querying
+
+  # A hack for groupdate 3.0 since it checks if the calculate_all method is defined
+  # on the ActiveRecord::Calculations module. It is never called but it is just
+  # needed for the check.
+  ActiveRecord::Calculations.include CalculateAll::Querying
+end
