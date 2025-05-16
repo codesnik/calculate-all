@@ -1,20 +1,29 @@
 require "test_helper"
 require "groupdate"
 
+class Department < ActiveRecord::Base
+  has_many :orders
+end
+
 class Order < ActiveRecord::Base
+  belongs_to :department
 end
 
 class CalculateAllTest < Minitest::Test
   def setup
     @@connected ||= begin
       if ENV["VERBOSE"]
-        ActiveRecord::Base.logger = ActiveSupport::Logger.new(STDOUT)
+        ActiveRecord::Base.logger = ActiveSupport::Logger.new($stdout)
       end
       ActiveRecord::Migration.verbose = false
       ActiveRecord::Base.establish_connection db_credentials
+      ActiveRecord::Migration.create_table :departments, force: true do |t|
+        t.string :name
+      end
       ActiveRecord::Migration.create_table :orders, force: true do |t|
         t.string :kind
         t.string :currency
+        t.integer :department_id
         t.integer :cents
         t.timestamp :created_at
       end
@@ -24,6 +33,7 @@ class CalculateAllTest < Minitest::Test
 
   def teardown
     Order.delete_all
+    Department.delete_all
   end
 
   def db_credentials
@@ -55,13 +65,19 @@ class CalculateAllTest < Minitest::Test
   end
 
   def create_orders
-    Order.create! [
-      {kind: "card", currency: "USD", cents: 100, created_at: Time.utc(2014, 1, 3)},
-      {kind: "card", currency: "RUB", cents: 200, created_at: Time.utc(2016, 1, 5)},
-      {kind: "cash", currency: "USD", cents: 300, created_at: Time.utc(2014, 1, 10)},
-      {kind: "cash", currency: "USD", cents: 400, created_at: Time.utc(2016, 5, 10)},
-      {kind: "cash", currency: "RUB", cents: 500, created_at: Time.utc(2016, 10, 10)}
-    ]
+    ActiveRecord::Base.transaction do
+      Department.create! [
+        {id: 1, name: "First"},
+        {id: 2, name: "Second"}
+      ]
+      Order.create! [
+        {department_id: 1, kind: "card", currency: "USD", cents: 100, created_at: Time.utc(2014, 1, 3)},
+        {department_id: 2, kind: "card", currency: "RUB", cents: 200, created_at: Time.utc(2016, 1, 5)},
+        {department_id: 2, kind: "cash", currency: "USD", cents: 300, created_at: Time.utc(2014, 1, 10)},
+        {department_id: 1, kind: "cash", currency: "USD", cents: 400, created_at: Time.utc(2016, 5, 10)},
+        {department_id: 2, kind: "cash", currency: "RUB", cents: 500, created_at: Time.utc(2016, 10, 10)}
+      ]
+    end
   end
 
   def test_it_has_a_version_number
@@ -88,6 +104,15 @@ class CalculateAllTest < Minitest::Test
 
   def test_many_groups_and_no_data
     assert_equal({}, Order.group(:kind).group(:currency).calculate_all(:cents_sum))
+  end
+
+  def test_one_group_one_expression
+    create_orders
+    expected = {
+      "RUB" => 700,
+      "USD" => 800
+    }
+    assert_equal(expected, Order.group(:currency).calculate_all(:cents_sum))
   end
 
   def test_one_group_many_expressions
@@ -129,9 +154,14 @@ class CalculateAllTest < Minitest::Test
     assert_equal(expected, Order.group(:currency).calculate_all("MAX(cents) - MIN(cents)"))
   end
 
-  def test_returns_only_value_on_no_groups_and_one_expression
+  def test_returns_only_value_on_no_groups_and_one_expression_shortcut
     create_orders
     assert_equal 2, Order.calculate_all(:count_distinct_currency)
+  end
+
+  def test_returns_hash_with_single_but_explicitly_named_expression_shortcut
+    create_orders
+    assert_equal({count_distinct_currency: 2}, Order.calculate_all(count_distinct_currency: :count_distinct_currency))
   end
 
   def test_returns_only_values_on_one_group_and_one_expression
@@ -141,6 +171,26 @@ class CalculateAllTest < Minitest::Test
       "card" => 2
     }
     assert_equal expected, Order.group(:kind).calculate_all(:count)
+  end
+
+  def test_returns_grouped_values_too_when_in_list_of_expressions
+    create_orders
+    expected = {
+      "cash" => {kind: "cash", count: 3},
+      "card" => {kind: "card", count: 2}
+    }
+    assert_equal expected, Order.group(:kind).calculate_all(:kind, :count)
+  end
+
+  def test_returns_grouped_values_too_when_in_list_of_aliased_expressions
+    create_orders
+    expected = {
+      [1, "cash"] => {payment: "cash", total: 400},
+      [1, "card"] => {payment: "card", total: 100},
+      [2, "card"] => {payment: "card", total: 200},
+      [2, "cash"] => {payment: "cash", total: 800}
+    }
+    assert_equal expected, Order.group(:department_id, :kind).calculate_all(payment: :kind, total: :sum_cents)
   end
 
   def test_groupdate_with_simple_values
@@ -271,5 +321,13 @@ class CalculateAllTest < Minitest::Test
       "cash" => ["USD", "USD", "RUB"]
     }
     assert_equal expected, Order.group(:kind).calculate_all("ARRAY_AGG(currency ORDER BY id)")
+  end
+
+  def test_console
+    skip unless ENV["CONSOLE"]
+
+    create_orders
+    require "irb"
+    IRB.start
   end
 end

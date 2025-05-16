@@ -3,54 +3,54 @@ require "calculate-all/version"
 
 module CalculateAll
   # Calculates multiple aggregate values on a scope in one request, similarly to #calculate
-  def calculate_all(*function_aliases, **functions, &block)
+  def calculate_all(*function_shortcuts, **functions, &block)
     # If only one aggregate is given without explicit naming,
     # return row(s) directly without wrapping in Hash
-    if function_aliases.size == 1 && functions.size == 0
+    if function_shortcuts.size == 1 && functions.size == 0
       return_plain_values = true
     end
 
-    # Convert the function_aliases to actual SQL
-    functions.merge!(CalculateAll::Helpers.decode_function_aliases(function_aliases))
-
-    # Check if any functions are given
-    if functions == {}
-      raise ArgumentError, "provide at least one function to calculate"
+    functions = function_shortcuts.map { |name| [name, name] }.to_h.merge(functions)
+    # Convert shortcuts to actual SQL
+    functions.transform_values! do |shortcut|
+      CalculateAll::Helpers.decode_function_shortcut(shortcut, group_values)
     end
 
-    columns = (group_values.map(&:to_s) + functions.values).map { |sql| Arel.sql(sql) }
+    raise ArgumentError, "provide at least one function to calculate" if functions.empty?
+
+    # Some older active_record versions do not allow for repeating expressions in pluck list,
+    # and functions could contain group values.
+    columns = (group_values + functions.values).uniq
+    value_mapping = functions.transform_values { |column| columns.index(column) }
+    columns.map! { |column| column.is_a?(String) ? Arel.sql(column) : column }
+
     results = {}
     pluck(*columns).each do |row|
-      # If pluck called without any groups and with a single argument,
-      # it will return an array of simple results instead of array of arrays
-      if functions.size == 1 && group_values.size == 0
-        row = [row]
-      end
+      # If pluck called with with a single argument
+      # it will return an array of sclars instead of array of arrays
+      row = [row] if columns.size == 1
 
       key = if group_values.size == 0
         :ALL
       elsif group_values.size == 1
         # If only one group is provided, the resulting key is just a scalar value
-        row.shift
+        row.first
       else
         # if multiple groups, the key will be an array.
-        row.shift(group_values.size)
+        row.first(group_values.size)
       end
 
-      value = if return_plain_values
-        row.last
-      else
-        # it is possible to have more actual group values returned than group_values.size
-        functions.keys.zip(row.last(functions.size)).to_h
-      end
+      value = value_mapping.transform_values { |index| row[index] }
+
+      value = value.values.last if return_plain_values
 
       results[key] = value
     end
 
     # Additional groupdate magic of filling empty periods with defaults
     if defined?(Groupdate.process_result)
-      # Since that hash is the same instance for every backfilled raw, at least
-      # freeze it to prevent surprize modifications in calling code.
+      # Since that hash is the same instance for every backfilled row, at least
+      # freeze it to prevent surprize modifications across multiple rows in the calling code.
       default_value = return_plain_values ? nil : {}.freeze
       results = Groupdate.process_result(self, results, default_value: default_value)
     end
