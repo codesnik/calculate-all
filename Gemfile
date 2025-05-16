@@ -4,10 +4,10 @@ gemspec
 
 gem "rake"
 gem "minitest"
-gem "activerecord", "~> 7.0.0"
-gem "groupdate", "~> 5.2.0"
+gem "activerecord", "~> 8.0.0"
+gem "groupdate", "~> 6"
 gem "pg"
 gem "mysql2"
-gem "sqlite3", "~> 1.4"
+gem "sqlite3", ">= 2.1"
 
 gem "standardrb", require: false
