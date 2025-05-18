@@ -27,8 +27,8 @@ module CalculateAll
 
     results = {}
     pluck(*columns).each do |row|
-      # If pluck called with with a single argument
-      # it will return an array of sclars instead of array of arrays
+      # If pluck called with a single argument
+      # it will return an array of scalars instead of array of arrays
       row = [row] if columns.size == 1
 
       key = if group_values.size == 0
@@ -51,7 +51,7 @@ module CalculateAll
     # Additional groupdate magic of filling empty periods with defaults
     if defined?(Groupdate.process_result)
       # Since that hash is the same instance for every backfilled row, at least
-      # freeze it to prevent surprize modifications across multiple rows in the calling code.
+      # freeze it to prevent surprise modifications across multiple rows in the calling code.
       default_value = return_plain_values ? nil : {}.freeze
       results = Groupdate.process_result(self, results, default_value: default_value)
     end

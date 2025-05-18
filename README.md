@@ -78,7 +78,7 @@ or arbitrary symbols and keyword arguments with SQL snippets, aggregate function
   )
 ```
 
-For convenience, `calculate_all(:count, :avg_column)` is the same as `caculate(count: :count, avg_column: :avg_column)`
+For convenience, `calculate_all(:count, :avg_column)` is the same as `calculate_all(count: :count, avg_column: :avg_column)`
 
 Here's a cheatsheet of recognized shortcuts:
 
@@ -139,7 +139,7 @@ with aggregate functions.
 ```ruby
 Order.group(:payment_method).calculate_all('CAST(SUM(price) AS decimal) / COUNT(DISTINCT user_id)')
 # => {
-#   "card" => 0.524e3
+#   "card" => 0.524e3,
 #   "cash" => 0.132e3
 # }
 ```
@@ -186,7 +186,7 @@ Order.group_by_year(:created_at).calculate_all(*Stats.members, &Stats.method(:ne
 # => {
 #   Wed, 01 Jan 2014 => #<data Stats count=2, max_price=700>,
 #   Thu, 01 Jan 2015 => #<data Stats count=0, max_price=nil>,
-#   Fri, 01 Jan 2016 => #<data Stats count=3, max_price800>
+#   Fri, 01 Jan 2016 => #<data Stats count=3, max_price=800>
 # }
 ```
 
@@ -227,7 +227,7 @@ Or install it yourself as:
 
 After checking out the repo, run `bin/setup` to install dependencies. Then, run `rake test` to run the tests.
 Run `BUNDLE_GEMFILE=gemfiles/activerecord60.gemfile bundle` then `BUNDLE_GEMFILE=gemfiles/activerecord60.gemfile rake`
-to test agains specific active record version.
+to test against specific active record version.
 
 To experiment you can load a test database and jump to IRB with
 
