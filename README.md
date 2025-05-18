@@ -67,13 +67,15 @@ However, it can calculate all of them in a single scan and a single request.
 `#calculate_all` accepts a single SQL expression with aggregate functions,
 
 ```ruby
-  Model.calculate_all('SUM(price) / COUNT(DISTINCT user_id)')
+  Model.calculate_all('CAST(SUM(price) as decimal) / COUNT(DISTINCT user_id)')
 ```
 
 or arbitrary symbols and keyword arguments with SQL snippets, aggregate function shortcuts or previously given grouping values.
 
 ```ruby
-  Model.group(:currency).calculate_all(:average_price, :currency, total: :count, average_spendings: 'SUM(price) / COUNT(DISTINCT user_id)')
+  Model.group(:currency).calculate_all(
+    :average_price, :currency, total: :sum_price, average_spendings: 'SUM(price)::decimal / COUNT(DISTINCT user_id)'
+  )
 ```
 
 For convenience, `calculate_all(:count, :avg_column)` is the same as `caculate(count: :count, avg_column: :avg_column)`
@@ -100,23 +102,20 @@ it could result in malicious SQL injection.
 `#calculate_all` tries to mimic magic of Active Record's `#group`, `#count` and `#pluck`
 so result type depends on arguments and on groupings.
 
-If you have no `group()` on underlying scope, `#calculate_all` will return just one result.
+If you have no `group()` on underlying scope, `#calculate_all` will return just one row.
 
 ```ruby
-# Same as Order.distinct.count(:user_id), so probably a useless example.
-# But you can use any expression with aggregate functions there.
-Order.calculate_all('COUNT(DISTINCT user_id)')
-# => 50
+Order.calculate_all(:price_sum)
+# => {price_sum: 123500}
 ```
 
 If you have a single `group()`, it will return a hash of results with simple keys.
 
 ```ruby
-# Again, Order.group(:department_id).distinct.count(:user_id) would do the same.
 Order.group(:department_id).calculate_all(:count_distinct_user_id)
 # => {
-#   1 => 20,
-#   2 => 10,
+#   1 => {count_distinct_user_id: 20},
+#   2 => {count_distinct_user_id: 10},
 #   ...
 # }
 ```
@@ -124,25 +123,36 @@ Order.group(:department_id).calculate_all(:count_distinct_user_id)
 If you have two or more groupings, each result will have an array as a key.
 
 ```ruby
-Order.group(:department_id).group(:department_method).calculate_all(:count_distinct_user_id)
+Order.group(:department_id).group(:department_method).calculate_all(:count)
 # => {
-#   [1, "cash"] => 5,
-#   [1, "card"] => 15,
-#   [2, "cash"] => 1,
+#   [1, "cash"] => {count: 5},
+#   [1, "card"] => {count: 15},
+#   [2, "cash"] => {count: 1},
 #   ...
 # }
 ```
 
-If you provide only one argument to `#calculate_all`, its calculated value will be returned as-is.
-Otherwise, the results will be returned as hash(es) with symbol keys.
-
-so, `Order.calculate_all(:count)` will return just a single integer, but
+If you provide only one *string* argument to `#calculate_all`, its calculated value will be returned as-is.
+This is just to make grouped companion to `Model.group(...).count` and friends, but for arbitrary expressions
+with aggregate functions.
 
 ```ruby
-Order.group(:department_id).group(:payment_method).calculate_all(:min_price, expr1: 'count(distinct user_id)')
+Order.group(:payment_method).calculate_all('CAST(SUM(price) AS decimal) / COUNT(DISTINCT user_id)')
 # => {
-#   [1, 'cash'] => {min_price: 100, expr1: 5},
-#   [1, 'card'] => {min_price: 150, expr2: 15},
+#   "card" => 0.524e3
+#   "cash" => 0.132e3
+# }
+```
+
+Otherwise, the results will be returned as hash(es) with symbol keys.
+
+```ruby
+Order.group(:department_id).group(:payment_method).calculate_all(
+  :min_price, type: :payment_method, expr1: 'count(distinct user_id)'
+)
+# => {
+#   [1, 'cash'] => {min_price: 100, type: 'cash', expr1: 5},
+#   [1, 'card'] => {min_price: 150, type: 'card', expr1: 15},
 #   ...
 # }
 ```
@@ -159,7 +169,7 @@ Order.group(:country_id).calculate_all(:count, :avg_price) { |count:, avg_price:
 #   2 => "10 orders, 200 dollars average"
 # }
 
-Order.group(:country_id).calculate_all(:avg_price) { |avg_price| avg_price.to_i }
+Order.group(:country_id).calculate_all("AVG(price)") { |avg_price| avg_price.to_i }
 # => {
 #   1 => 120,
 #   2 => 200

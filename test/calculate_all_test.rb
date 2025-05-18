@@ -91,11 +91,11 @@ class CalculateAllTest < Minitest::Test
   end
 
   def test_model_and_no_data
-    assert_nil(Order.calculate_all(:cents_sum))
+    assert_nil(Order.calculate_all("sum(cents)"))
   end
 
   def test_scope_and_single_expression_no_data
-    assert_nil(Order.all.calculate_all(:cents_sum))
+    assert_nil(Order.all.calculate_all("sum(cents)"))
   end
 
   def test_one_group_and_no_data
@@ -103,14 +103,23 @@ class CalculateAllTest < Minitest::Test
   end
 
   def test_many_groups_and_no_data
-    assert_equal({}, Order.group(:kind).group(:currency).calculate_all(:cents_sum))
+    assert_equal({}, Order.group(:kind).group(:currency).calculate_all(:cents_sum, :count))
+  end
+
+  def test_one_group_one_string_expression
+    create_orders
+    expected = {
+      "RUB" => 700,
+      "USD" => 800
+    }
+    assert_equal(expected, Order.group(:currency).calculate_all("sum(cents)"))
   end
 
   def test_one_group_one_expression
     create_orders
     expected = {
-      "RUB" => 700,
-      "USD" => 800
+      "RUB" => {cents_sum: 700},
+      "USD" => {cents_sum: 800}
     }
     assert_equal(expected, Order.group(:currency).calculate_all(:cents_sum))
   end
@@ -145,32 +154,9 @@ class CalculateAllTest < Minitest::Test
     assert_equal(400, Order.calculate_all("MAX(cents) - MIN(cents)"))
   end
 
-  def test_returns_only_values_on_one_group_one_string_expression
-    create_orders
-    expected = {
-      "RUB" => 300,
-      "USD" => 300
-    }
-    assert_equal(expected, Order.group(:currency).calculate_all("MAX(cents) - MIN(cents)"))
-  end
-
   def test_returns_only_value_on_no_groups_and_one_expression_shortcut
     create_orders
-    assert_equal 2, Order.calculate_all(:count_distinct_currency)
-  end
-
-  def test_returns_hash_with_single_but_explicitly_named_expression_shortcut
-    create_orders
-    assert_equal({count_distinct_currency: 2}, Order.calculate_all(count_distinct_currency: :count_distinct_currency))
-  end
-
-  def test_returns_only_values_on_one_group_and_one_expression
-    create_orders
-    expected = {
-      "cash" => 3,
-      "card" => 2
-    }
-    assert_equal expected, Order.group(:kind).calculate_all(:count)
+    assert_equal({count_distinct_currency: 2}, Order.calculate_all(:count_distinct_currency))
   end
 
   def test_returns_grouped_values_too_when_in_list_of_expressions
@@ -203,7 +189,7 @@ class CalculateAllTest < Minitest::Test
       Date.new(2016) => 3
     }
     defaults = old_groupdate? ? {default_value: nil} : {}
-    assert_equal expected, Order.group_by_year(:created_at, **defaults).calculate_all(:count)
+    assert_equal expected, Order.group_by_year(:created_at, **defaults).calculate_all("count(id)")
   end
 
   def test_groupdate_with_several_groups
@@ -231,7 +217,7 @@ class CalculateAllTest < Minitest::Test
       Date.new(2015) => "none",
       Date.new(2016) => "3 orders"
     }
-    assert_equal expected, Order.group_by_year(:created_at).calculate_all(:count) { |count| count ? "#{count} orders" : "none" }
+    assert_equal expected, Order.group_by_year(:created_at).calculate_all("count(*)") { |count| count ? "#{count} orders" : "none" }
   end
 
   def test_groupdate_with_several_groups_and_value_wrapping
@@ -258,7 +244,7 @@ class CalculateAllTest < Minitest::Test
 
   def test_value_wrapping_one_expression_and_no_groups
     create_orders
-    assert_equal "5 orders", Order.calculate_all(:count) { |count| "#{count} orders" }
+    assert_equal "5 orders", Order.calculate_all(:count) { |count:| "#{count} orders" }
   end
 
   def test_value_wrapping_for_one_expression
@@ -267,7 +253,7 @@ class CalculateAllTest < Minitest::Test
       "RUB" => "2 orders",
       "USD" => "3 orders"
     }
-    assert_equal expected, Order.group(:currency).calculate_all(:count) { |count|
+    assert_equal expected, Order.group(:currency).calculate_all(:count) { |count:|
       "#{count} orders"
     }
   end

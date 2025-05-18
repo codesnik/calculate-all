@@ -4,9 +4,10 @@ require "calculate-all/version"
 module CalculateAll
   # Calculates multiple aggregate values on a scope in one request, similarly to #calculate
   def calculate_all(*expression_shortcuts, **named_expressions, &block)
-    # If only one aggregate is given without explicit naming,
+    # If only one aggregate is given as a string or Arel.sql without explicit naming,
     # return row(s) directly without wrapping in Hash
-    if expression_shortcuts.size == 1 && named_expressions.size == 0
+    if expression_shortcuts.size == 1 && expression_shortcuts.first.is_a?(String) &&
+        named_expressions.size == 0
       return_plain_values = true
     end
 
