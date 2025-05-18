@@ -4,6 +4,7 @@ gemspec
 
 gem "rake"
 gem "minitest"
+gem "minitest-reporters"
 gem "activerecord", "~> 8.0.0"
 gem "groupdate", "~> 6"
 gem "pg"

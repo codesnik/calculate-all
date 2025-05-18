@@ -4,6 +4,7 @@ gemspec path: ".."
 
 gem "rake"
 gem "minitest", "~> 5.0"
+gem "minitest-reporters"
 gem "activerecord", "~> 4.2.0"
 gem "groupdate", "~> 3.0.0"
 gem "pg", "~> 0.15"
