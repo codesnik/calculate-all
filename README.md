@@ -123,7 +123,7 @@ Order.group(:department_id).calculate_all(:count_distinct_user_id)
 If you have two or more groupings, each result will have an array as a key.
 
 ```ruby
-Order.group(:department_id).group(:department_method).calculate_all(:count)
+Order.group(:department_id).group(:payment_method).calculate_all(:count)
 # => {
 #   [1, "cash"] => {count: 5},
 #   [1, "card"] => {count: 15},
