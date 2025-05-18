@@ -1,8 +1,8 @@
-## unreleased
+## 0.3.0
 
 * Allow expression shortcuts as attribute values too for renaming
-* Allow grouping expressions to be returned in values too
-* Breaking change: only one *string* expression is returned unwrapped in a hash.
+* Allow grouping expressions to be returned in rows too
+* Breaking change: only single *string* expression argument is returning unwrapped rows now.
   Single expression shortcut like `:count` will be expanded to `{count: value}` rows.
 
 ## 0.2.2
