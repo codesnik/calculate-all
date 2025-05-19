@@ -1,3 +1,8 @@
+## 0.4.0
+
+* Add #async_calculate_all for rails > 7.1
+* Drop support for ruby < 2.6, groupdate < 4
+
 ## 0.3.1
 
 * Fix some arguments exceptions
