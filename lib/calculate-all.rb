@@ -117,9 +117,4 @@ ActiveSupport.on_load(:active_record) do
   # Make the calculate_all method available for all ActiveRecord::Base classes
   # You can for example call Orders.calculate_all(:count, :sum_cents)
   ActiveRecord::Base.extend CalculateAll::Querying
-
-  # A hack for groupdate 3.0 since it checks if the calculate_all method is defined
-  # on the ActiveRecord::Calculations module. It is never called but it is just
-  # needed for the check.
-  ActiveRecord::Calculations.include CalculateAll::Querying
 end

@@ -8,7 +8,7 @@ in a single request, with support for grouping.
 
 Should be useful for dashboards, timeseries stats, and charts.
 
-Currently tested with PostgreSQL, MySQL and SQLite3, ruby >= 2.3, rails >= 4, groupdate >= 4.
+Currently tested with PostgreSQL, MySQL and SQLite3, ruby >= 2.6, rails >= 4, groupdate >= 4.
 
 ## Usage
 

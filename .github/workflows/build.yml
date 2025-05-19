@@ -17,10 +17,8 @@ jobs:
         - ruby: "2.6"
           gemfile: gemfiles/activerecord52.gemfile
         - ruby: "2.6"
-          gemfile: gemfiles/activerecord51.gemfile
-        - ruby: "2.6"
           gemfile: gemfiles/activerecord50.gemfile
-        - ruby: "2.3"
+        - ruby: "2.6"
           gemfile: gemfiles/activerecord42.gemfile
     runs-on: ubuntu-latest
     env:
