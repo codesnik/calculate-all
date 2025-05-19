@@ -11,7 +11,7 @@ module CalculateAll
       return_plain_values = true
     end
 
-    named_expressions = expression_shortcuts.map { |name| [name, name] }.to_h.merge(named_expressions)
+    named_expressions = expression_shortcuts.index_by(&:itself).merge(named_expressions)
 
     named_expressions.transform_values! do |shortcut|
       Helpers.decode_expression_shortcut(shortcut, group_values)
@@ -25,48 +25,55 @@ module CalculateAll
     value_mapping = named_expressions.transform_values { |column| columns.index(column) }
     columns.map! { |column| column.is_a?(String) ? Arel.sql(column) : column }
 
-    results = {}
-    pluck(*columns).each do |row|
-      # If pluck called with a single argument
-      # it will return an array of scalars instead of array of arrays
-      row = [row] if columns.size == 1
+    pluck(*columns).then do |rows|
+      results = rows.to_h do |row|
+        # If pluck called with a single argument
+        # it will return an array of scalars instead of array of arrays
+        row = [row] if columns.size == 1
 
-      key = if group_values.size == 0
-        :ALL
-      elsif group_values.size == 1
-        # If only one group is provided, the resulting key is just a scalar value
-        row.first
+        key = if group_values.size == 0
+          :ALL
+        elsif group_values.size == 1
+          # If only one group is provided, the resulting key is just a scalar value
+          row.first
+        else
+          # if multiple groups, the key will be an array.
+          row.first(group_values.size)
+        end
+
+        value = value_mapping.transform_values { |index| row[index] }
+
+        value = value.values.last if return_plain_values
+
+        [key, value]
+      end
+
+      # Additional groupdate magic of filling empty periods with defaults
+      if defined?(Groupdate.process_result)
+        # Since that hash is the same instance for every backfilled row, at least
+        # freeze it to prevent surprise modifications across multiple rows in the calling code.
+        default_value = return_plain_values ? nil : {}.freeze
+        results = Groupdate.process_result(self, results, default_value: default_value)
+      end
+
+      if block
+        results.transform_values! do |value|
+          return_plain_values ? block.call(value) : block.call(**value)
+        end
+      end
+
+      # Return unwrapped hash directly for scope without any .group()
+      if group_values.empty?
+        results[:ALL]
       else
-        # if multiple groups, the key will be an array.
-        row.first(group_values.size)
-      end
-
-      value = value_mapping.transform_values { |index| row[index] }
-
-      value = value.values.last if return_plain_values
-
-      results[key] = value
-    end
-
-    # Additional groupdate magic of filling empty periods with defaults
-    if defined?(Groupdate.process_result)
-      # Since that hash is the same instance for every backfilled row, at least
-      # freeze it to prevent surprise modifications across multiple rows in the calling code.
-      default_value = return_plain_values ? nil : {}.freeze
-      results = Groupdate.process_result(self, results, default_value: default_value)
-    end
-
-    if block
-      results.transform_values! do |value|
-        return_plain_values ? block.call(value) : block.call(**value)
+        results
       end
     end
+  end
 
-    # Return unwrapped hash directly for scope without any .group()
-    if group_values.empty?
-      results[:ALL]
-    else
-      results
+  if Gem::Version.new(ActiveRecord.version) >= Gem::Version.new('7.1.0')
+    def async_calculate_all(*expression_shortcuts, **named_expressions, &block)
+      async.calculate_all(*expression_shortcuts, **named_expressions, &block)
     end
   end
 
@@ -103,9 +110,16 @@ module CalculateAll
   end
 
   module Querying
-    # @see CalculateAll#calculate_all
-    def calculate_all(*args, **kwargs, &block)
-      all.calculate_all(*args, **kwargs, &block)
+    # see CalculateAll#calculate_all
+    def calculate_all(*expression_shortcuts, **named_expressions, &block)
+      all.calculate_all(*expression_shortcuts, **named_expressions, &block)
+    end
+
+    if Gem::Version.new(ActiveRecord.version) >= Gem::Version.new('7.1.0')
+      # see CalculateAll#async_calculate_all
+      def async_calculate_all(*expression_shortcuts, **named_expressions, &block)
+        all.async_calculate_all(*expression_shortcuts, **named_expressions, &block)
+      end
     end
   end
 end
