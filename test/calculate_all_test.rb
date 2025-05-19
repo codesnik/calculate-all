@@ -60,6 +60,10 @@ class CalculateAllTest < Minitest::Test
     ENV["ADAPTER"] == "sqlite"
   end
 
+  def supports_async?
+    Gem::Version.new(ActiveRecord.version) >= Gem::Version.new('7.1.0')
+  end
+
   def create_orders
     ActiveRecord::Base.transaction do
       Department.create! [
@@ -282,6 +286,36 @@ class CalculateAllTest < Minitest::Test
     assert_equal expected, Order.group(:currency).calculate_all(:count, :max_cents, &OpenStruct.method(:new))
   end
 
+  def test_async_on_model
+    skip unless supports_async?
+
+    create_orders
+    assert_async_equal({departments: 2}, Order.async_calculate_all(departments: :count_distinct_department_id))
+  end
+
+  def test_async_with_groupdate_and_value_wrapping
+    skip unless supports_async?
+
+    create_orders
+    expected = {
+      ["cash", Date.new(2014)] => "1 orders, 300 total",
+      ["card", Date.new(2014)] => "1 orders, 100 total",
+      ["cash", Date.new(2015)] => "0 orders",
+      ["card", Date.new(2015)] => "0 orders",
+      ["cash", Date.new(2016)] => "2 orders, 900 total",
+      ["card", Date.new(2016)] => "1 orders, 200 total"
+    }
+
+    assert_async_equal expected,
+      Order.group(:kind).group_by_year(:created_at).async_calculate_all(:count, :sum_cents) { |count: 0, sum_cents: nil|
+        if sum_cents
+          "#{count} orders, #{sum_cents} total"
+        else
+          "#{count} orders"
+        end
+      }
+  end
+
   def test_returns_array_on_array_aggregate
     skip unless postgresql?
 
@@ -307,5 +341,18 @@ class CalculateAllTest < Minitest::Test
     create_orders
     require "irb"
     IRB.start
+  end
+
+  private
+
+  def assert_async_equal(expected, async_result)
+    message = "Expected to return an ActiveRecord::Promise, got: #{async_result.inspect}"
+    assert_equal(true, ActiveRecord::Promise === async_result, message)
+
+    if expected.nil?
+      assert_nil async_result.value
+    else
+      assert_equal expected, async_result.value
+    end
   end
 end

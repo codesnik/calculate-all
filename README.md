@@ -10,6 +10,9 @@ Should be useful for dashboards, timeseries stats, and charts.
 
 Currently tested with PostgreSQL, MySQL and SQLite3, ruby >= 2.6, rails >= 4, groupdate >= 4.
 
+With rails >= 7.1, `#async_calculate_all` is also available, which does the same but in a separate
+db connection and ruby thread, and returns `ActiveRecord::Promise`
+
 ## Usage
 
 (example SQL snippets are given for PostgreSQL)
@@ -46,6 +49,16 @@ stats = Order.group(:department_id).group(:payment_method).order(:payment_method
 #     ...
 #   }
 # }
+```
+
+```ruby
+stats_by_department = Order.group(:department_id).async_calculate_all(:count, :price_sum)
+# continue with some other expensive stuff
+
+# later, in some view
+stats_by_department.value.each do |department_id, stats|
+   # ...
+end
 ```
 
 ## Rationale
