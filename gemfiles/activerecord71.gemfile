@@ -1,0 +1,12 @@
+source "https://rubygems.org"
+
+gemspec path: ".."
+
+gem "rake"
+gem "minitest"
+gem "minitest-reporters"
+gem "activerecord", "~> 7.1.0"
+gem "groupdate", "~> 6.0.0"
+gem "pg"
+gem "mysql2"
+gem "sqlite3", "~> 1.4"
