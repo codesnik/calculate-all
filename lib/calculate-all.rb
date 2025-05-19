@@ -97,7 +97,7 @@ module CalculateAll
       when /^(\w+)_minimum$/, /^minimum_(\w+)$/
         "MIN(#{$1})"
       else
-        raise ArgumentError, "Can't recognize expression shortcut #{key}"
+        raise ArgumentError, "Can't recognize expression shortcut #{shortcut}"
       end
     end
   end

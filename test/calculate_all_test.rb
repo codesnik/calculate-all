@@ -90,6 +90,12 @@ class CalculateAllTest < Minitest::Test
     end
   end
 
+  def test_unknown_shortcut
+    assert_raises ArgumentError do
+      Order.all.calculate_all(:foo)
+    end
+  end
+
   def test_model_and_no_data
     assert_nil(Order.calculate_all("sum(cents)"))
   end
