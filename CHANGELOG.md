@@ -1,3 +1,7 @@
+## 0.3.1
+
+* Fix some arguments exceptions
+
 ## 0.3.0
 
 * Allow expression shortcuts as attribute values too for renaming
