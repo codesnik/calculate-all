@@ -310,7 +310,7 @@ class CalculateAllTest < Minitest::Test
   end
 
   def test_console
-    skip unless ENV["CONSOLE"]
+    return unless ENV["CONSOLE"]
 
     create_orders
     require "irb"

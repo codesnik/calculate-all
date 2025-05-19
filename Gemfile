@@ -11,6 +11,7 @@ gem "pg"
 gem "mysql2"
 gem "sqlite3", ">= 2.1"
 
+gem "irb"
 gem "ostruct"
 
 gem "standardrb", require: false
