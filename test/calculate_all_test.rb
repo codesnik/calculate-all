@@ -60,10 +60,6 @@ class CalculateAllTest < Minitest::Test
     ENV["ADAPTER"] == "sqlite"
   end
 
-  def old_groupdate?
-    Gem::Version.new(Groupdate::VERSION) < Gem::Version.new("4.0.0")
-  end
-
   def create_orders
     ActiveRecord::Base.transaction do
       Department.create! [
@@ -186,21 +182,16 @@ class CalculateAllTest < Minitest::Test
   end
 
   def test_groupdate_with_simple_values
-    skip if sqlite? && old_groupdate?
-
     create_orders
     expected = {
       Date.new(2014) => 2,
       Date.new(2015) => nil,
       Date.new(2016) => 3
     }
-    defaults = old_groupdate? ? {default_value: nil} : {}
-    assert_equal expected, Order.group_by_year(:created_at, **defaults).calculate_all("count(id)")
+    assert_equal expected, Order.group_by_year(:created_at).calculate_all("count(id)")
   end
 
   def test_groupdate_with_several_groups
-    skip if sqlite? && old_groupdate?
-
     create_orders
     expected = {
       ["cash", Date.new(2014)] => {count: 1, sum_cents: 300},
@@ -210,13 +201,10 @@ class CalculateAllTest < Minitest::Test
       ["cash", Date.new(2016)] => {count: 2, sum_cents: 900},
       ["card", Date.new(2016)] => {count: 1, sum_cents: 200}
     }
-    defaults = old_groupdate? ? {default_value: {}} : {}
-    assert_equal expected, Order.group(:kind).group_by_year(:created_at, **defaults).calculate_all(:count, :sum_cents)
+    assert_equal expected, Order.group(:kind).group_by_year(:created_at).calculate_all(:count, :sum_cents)
   end
 
   def test_groupdate_with_value_wrapping
-    skip if old_groupdate?
-
     create_orders
     expected = {
       Date.new(2014) => "2 orders",
@@ -227,8 +215,6 @@ class CalculateAllTest < Minitest::Test
   end
 
   def test_groupdate_with_several_groups_and_value_wrapping
-    skip if old_groupdate?
-
     create_orders
     expected = {
       ["cash", Date.new(2014)] => "1 orders, 300 total",
